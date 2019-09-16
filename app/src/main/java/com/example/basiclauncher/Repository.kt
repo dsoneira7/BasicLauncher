@@ -136,8 +136,8 @@ class Repository private constructor(ctx: Context) {
         nPages = Helper.getFromSharedPreferences(context.get()!!.packageName,
                 "nPages", "0", context.get()!!.applicationContext)!!.toInt()
         if (page != 0 &&
-                (stateDao!!.getAllStatesByPage(page).value != null
-                        || stateDao.getAllStatesByPage(page).value.isEmpty())) {
+                (stateListMap.get(page).value != null
+                        || stateListMap.get(page).value!!.isEmpty())) {
             if ((page + 1) < nPages) {
                 reallocatePages(page, nPages)
             }
