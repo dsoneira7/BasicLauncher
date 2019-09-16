@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    tools:context=".fragments.ShortcutsBarFragment"
+    android:id="@+id/frame_layout_shortcuts_bar">
+
+    <FrameLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/container_shortcut_2"
+        android:id="@+id/container_shortcut_1"/>
+    <FrameLayout
+        android:id="@+id/container_shortcut_2"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        app:layout_constraintEnd_toStartOf="@id/arrow_icon"
+        app:layout_constraintStart_toEndOf="@id/container_shortcut_1"/>
+    <ImageView
+        android:id="@+id/arrow_icon"
+        android:src="@drawable/icon_arrow"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        app:layout_constraintEnd_toStartOf="@id/container_shortcut_3"
+        app:layout_constraintStart_toEndOf="@id/container_shortcut_2"/>
+    <FrameLayout
+        android:id="@+id/container_shortcut_3"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        app:layout_constraintEnd_toStartOf="@id/container_shortcut_4"
+        app:layout_constraintStart_toEndOf="@id/arrow_icon"/>
+    <FrameLayout
+        android:id="@+id/container_shortcut_4"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        app:layout_constraintStart_toEndOf="@id/container_shortcut_3"
+        app:layout_constraintEnd_toEndOf="parent"/>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

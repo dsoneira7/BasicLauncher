@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.preference.PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <DropDownPreference
+        app:entries="@array/array_size"
+        app:entryValues="@array/array_size"
+        app:key="dropdown_size"
+        app:title="Cantidad de iconos por fila" />
+
+
+</androidx.preference.PreferenceScreen>
