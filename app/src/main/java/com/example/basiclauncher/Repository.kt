@@ -117,7 +117,7 @@ class Repository private constructor(ctx: Context) {
                 }
         )
 
-        Log.d("debun", "Succesful operation $ok")
+        Log.d("debug", "Succesful operation $ok")
         /*nPages = Helper.getFromSharedPreferences(context.get()!!.packageName,
                 "nPages", "0", context.get()!!.applicationContext)!!.toInt()
         if((page+1)>=nPages){

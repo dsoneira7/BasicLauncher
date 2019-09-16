@@ -33,7 +33,7 @@ class ScreenSlidePagerViewModel(app: Application, val page: Int) : AndroidViewMo
         appList = repository!!.getAppListByPage(page)
         stateList.observeForever{
             for(i in it){
-                Log.d("qwerty", "Here: page: " + i.page + " " + i.position)
+                Log.d("ScreenSlidePagerViewMod", "Updated value of state: page: " + i.page + " " + i.position)
             }
         }
         appList.observeForever{

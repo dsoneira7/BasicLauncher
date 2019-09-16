@@ -81,13 +81,13 @@ class CustomLinearLayout(private val mContext: Context?, private val page: Int, 
             DragEvent.ACTION_DROP -> { //todo: thread secundario
                 Log.d("debug", "drop")
                 val item = event.clipData.getItemAt(0)
-                val dragData = item.text as String
+                /*val dragData = item.text as String
                 //setApp(dragData)
-                app = dragData
+                app = dragData*/
                 view!!.background.alpha = 0
                 view.setBackgroundColor(Color.TRANSPARENT)
                 post {
-                    onIconAttachedListener(app, page, position)
+                    onIconAttachedListener(item.text as String, page, position)
                 }
                 post {
                     onPostIconAttachedListener(ON_ICON_ATTACHED)

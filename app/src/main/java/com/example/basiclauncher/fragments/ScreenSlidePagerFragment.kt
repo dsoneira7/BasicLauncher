@@ -48,6 +48,9 @@ class ScreenSlidePagerFragment : Fragment() {
         iconWidth = arguments?.getInt("iconSize", iconWidth)!!  //todo:innecesario
         page = arguments?.getInt("position", page)!!
         isSmallFragment = arguments?.getInt("isSmallFragment", isSmallFragment)!! //todo: Optimize
+        mainFragmentViewModel = ViewModelProviders.of(this.activity!!).get(MainFragmentViewModel::class.java)
+        viewModel = ViewModelProviders.of(this, ScreenSlidePagerViewModelFactory(activity!!.application, page)).get(ScreenSlidePagerViewModel::class.java)
+
     }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?,
@@ -57,8 +60,6 @@ class ScreenSlidePagerFragment : Fragment() {
 
     override fun onActivityCreated(savedInstanceState: Bundle?) {
         super.onActivityCreated(savedInstanceState)
-        mainFragmentViewModel = ViewModelProviders.of(this.activity!!).get(MainFragmentViewModel::class.java)
-        viewModel = ViewModelProviders.of(this, ScreenSlidePagerViewModelFactory(activity!!.application, page)).get(ScreenSlidePagerViewModel::class.java)
 
         iconHeight = when(isSmallFragment){
             IS_NORMAL -> mainFragmentViewModel.iconHeight
@@ -77,20 +78,18 @@ class ScreenSlidePagerFragment : Fragment() {
 
         if(isSmallFragment == IS_NORMAL){
             viewModel.stateList.observe(this, Observer{
+                Log.d("debug", "Observado un cambio")
                 for (i in it){
-                    val cell = view!!.findViewById<CustomLinearLayout>((page+1)*(i.position+1))
-                    if(cell == null){
-                        Log.d("ERROR", "Cell not found")
-                    }
-                    else if((cell.isEmpty() || cell.appId != i.appId) && viewModel.appList.value!!.get(i.position) != null){
-                        cell.setApp(viewModel.appList.value!!.get(i.position))
-                    }
-                    else{
-                        Log.d("ERROR", "ERRORRRR")
-                    }
-                }
-            })
+            val cell = view!!.findViewById<CustomLinearLayout>((page+1)*(i.position+1))
+            if(cell == null){
+                Log.d("ERROR", "Cell not found")
+            }
+            else if((cell.isEmpty() || cell.appId != i.appId) && viewModel.appList.value!!.get(i.position) != null){
+                cell.setApp(viewModel.appList.value!!.get(i.position))
+            }
         }
+    })
+}
     }
 
     private fun gridConfiguration(){
@@ -99,6 +98,9 @@ class ScreenSlidePagerFragment : Fragment() {
             for(i in viewModel.stateList.value!!){
                 arrayOfStates[i.position] = i
             }
+        }
+        else{
+            Log.d("debug", "value of LiveData null")
         }
         for (i in 0 until nIcons) {
             val linearLayout = CustomLinearLayout(context, page, i)
