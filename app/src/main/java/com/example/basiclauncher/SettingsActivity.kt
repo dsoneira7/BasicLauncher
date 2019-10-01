@@ -9,7 +9,7 @@ class SettingsActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_settings)
-        supportActionBar?.show() //todo: customize
+        supportActionBar?.show()
         supportFragmentManager
                 .beginTransaction()
                 .add(
@@ -19,4 +19,8 @@ class SettingsActivity : AppCompatActivity() {
                 ).commit()
     }
 
+    override fun onBackPressed() {
+        setResult(RESULT_OK)
+        finish()
+    }
 }

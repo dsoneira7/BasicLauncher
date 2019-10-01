@@ -10,12 +10,12 @@ import androidx.room.ForeignKey.CASCADE
         foreignKeys = [ForeignKey(
                 entity = AppIcon::class,
                 childColumns = ["appId"],
-parentColumns = ["id"],
-onDelete = CASCADE
-)]
+                parentColumns = ["id"],
+                onDelete = CASCADE
+        )]
 )
 data class CustomLinearLayoutState(
-        @ColumnInfo(name = "page")var page: Int,
-        @ColumnInfo(name = "position")var position: Int,
-        var appId : Int = -1
+        @ColumnInfo(name = "page") var page: Int,
+        @ColumnInfo(name = "position") var position: Int,
+        var appId: Int = -1
 )

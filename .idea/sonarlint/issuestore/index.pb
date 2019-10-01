@@ -59,3 +59,7 @@ o
 ?app/src/main/java/com/example/basiclauncher/SerializeManager.kt,a\b\abbbd9e27bbeb29506246d97b1e6834ea2d4b8f4
 u
 Eapp/src/main/java/com/example/basiclauncher/SerializeManagerJava.java,c\e\ce0d29044b4341ab63dd95f992fcce43253e5623
+|
+Lapp/src/main/java/com/example/basiclauncher/InstallEventBroadcastReceiver.kt,b\3\b3733b66503337a753622112c766bdc93ab22bd0
+n
+>app/src/main/java/com/example/basiclauncher/BindingAdapters.kt,1\c\1c71943b0090e7a6c51916890d5195c0a3ca93b3

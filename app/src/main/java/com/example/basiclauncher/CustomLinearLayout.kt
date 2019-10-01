@@ -5,6 +5,7 @@ import android.content.ClipDescription
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
+import android.graphics.drawable.BitmapDrawable
 import android.os.Build
 import android.util.Log
 import android.view.DragEvent
@@ -21,8 +22,8 @@ class CustomLinearLayout(private val mContext: Context?, private val page: Int, 
     private var touched = false
     private lateinit var onIconAttachedListener: (String, Int, Int) -> Unit
     private lateinit var onPostIconAttachedListener: (Int) -> Unit
-    private lateinit var app: String
-    var appId = -1
+    private var app: String = ""
+    private var appId = -1
     private var icon: ImageView? = null
 
     init {
@@ -33,37 +34,36 @@ class CustomLinearLayout(private val mContext: Context?, private val page: Int, 
 
     fun isEmpty(): Boolean = empty
 
+    fun getAppId(): Int = appId
 
     fun attachListeners(onIconAttached: (String, Int, Int) -> Unit, onPostIconAttachedListener: (Int) -> Unit) {
         onIconAttachedListener = onIconAttached
         this.onPostIconAttachedListener = onPostIconAttachedListener
     }
 
-    fun setApp(app: AppIcon){
-        appId = app.id!!
-        setApp(app.packageName)
-    }
+    fun setApp(app: AppIcon) {
+        this.app = app.packageName
+        this.appId = app.id
 
-    fun setApp(app: String) { //todo: usar icon almacenado en bbdd si se tiene
-        this.app = app
+        this.app = app.packageName
         empty = false
-        if (icon == null) {
+        if(icon!=null){
+            this.removeView(icon)
+        }
             icon = ImageView(mContext)
-            //icon?.id = (page + 1) * (position + 1)
-            icon?.tag = app
+            //icon?.appId = (page + 1) * (position + 1)
+            icon?.tag = app.packageName
             icon?.layoutParams = ViewGroup.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
-            val drawable = Helper.getActivityIcon(mContext!!, app)
+            val drawable = BitmapDrawable(context.resources, app.icon)
             icon?.setImageDrawable(drawable)
             this.addView(icon)
-        } else {
-        }
+
     }
 
     override fun onDrag(view: View?, event: DragEvent?): Boolean {
         when (event?.action) {
 
             DragEvent.ACTION_DRAG_ENTERED -> {
-                Log.d("debug", "entered")
                 view?.setBackgroundColor(Color.GREEN)
                 view?.background!!.alpha = 140
                 view.invalidate()
@@ -71,21 +71,21 @@ class CustomLinearLayout(private val mContext: Context?, private val page: Int, 
             }
 
             DragEvent.ACTION_DRAG_EXITED -> {
-                Log.d("debug", "exited")
-                view?.background!!.alpha=0
+                view?.background!!.alpha = 0
                 view.setBackgroundColor(Color.TRANSPARENT)
                 view.invalidate()
                 return true
             }
 
             DragEvent.ACTION_DROP -> { //todo: thread secundario
-                Log.d("debug", "drop")
                 val item = event.clipData.getItemAt(0)
                 /*val dragData = item.text as String
                 //setApp(dragData)
                 app = dragData*/
-                view!!.background.alpha = 0
-                view.setBackgroundColor(Color.TRANSPARENT)
+                if(view!!.background != null) {
+                    view.background.alpha = 0
+                    view.setBackgroundColor(Color.TRANSPARENT)
+                }
                 post {
                     onIconAttachedListener(item.text as String, page, position)
                 }
@@ -134,6 +134,13 @@ class CustomLinearLayout(private val mContext: Context?, private val page: Int, 
             onPostIconAttachedListener(ON_EMPTY_CLICK)
         }
         return true
+    }
+
+    fun clear() {
+        app = ""
+        val image = this.removeView(icon)
+        empty = true
+        invalidate()
     }
 
 }

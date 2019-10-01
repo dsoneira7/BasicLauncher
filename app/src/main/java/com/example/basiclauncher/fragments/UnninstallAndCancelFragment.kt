@@ -35,8 +35,8 @@ class UnninstallAndCancelFragment : Fragment(), View.OnDragListener {
                               savedInstanceState: Bundle?
     ): View {
         val view = inflater.inflate(R.layout.fragment_unninstall_and_cancel, container, false)
-/*        view.findViewById<LinearLayout>(R.id.container_invalidate).setOnDragListener(this)
-        view.findViewById<LinearLayout>(R.id.container_unnistall).setOnDragListener(this)*/
+/*        view.findViewById<LinearLayout>(R.appId.container_invalidate).setOnDragListener(this)
+        view.findViewById<LinearLayout>(R.appId.container_unnistall).setOnDragListener(this)*/
         return view
     }
 

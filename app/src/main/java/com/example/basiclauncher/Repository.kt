@@ -2,10 +2,13 @@ package com.example.basiclauncher
 
 import android.content.Context
 import android.content.Intent
-import android.content.pm.ResolveInfo
+import android.content.IntentFilter
 import android.graphics.drawable.BitmapDrawable
 import android.util.Log
 import android.util.SparseArray
+import androidx.core.util.containsKey
+import androidx.core.util.containsValue
+import androidx.core.util.valueIterator
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import com.example.basiclauncher.classes.AppIcon
@@ -14,44 +17,84 @@ import com.example.basiclauncher.room.AbstractAppDatabase
 import java.lang.ref.WeakReference
 import java.util.*
 
+
 //todo: estados guardados de paginas transferidas; paginas non actualizadas
+//todo: revisar nombres variables
+//todo: Contemplar posibilidad de varias activities launcher para un mismo paquete
 class Repository private constructor(ctx: Context) {
     private var context: WeakReference<Context> = WeakReference(ctx)
-    var isUpdated = false
     private var appList: LiveData<Array<AppIcon>> = MutableLiveData()
-    var stateList = ArrayList<CustomLinearLayoutState>()
+    private var appSparseArrayLiveData: MutableLiveData<SparseArray<AppIcon>> = MutableLiveData()
     var stateListMap = SparseArray<LiveData<Array<CustomLinearLayoutState>>>()
-    var appListMap = SparseArray<MutableLiveData<SparseArray<AppIcon>>>()
     private val myDao = AbstractAppDatabase.getInstance(context.get()!!)?.myDao()
     private val stateDao = AbstractAppDatabase.getInstance(context.get()!!)?.stateDao()
     var nPages = 0
     var version: Long = 0
 
-    private val getAppDrawerListThread = Thread { //todo: Cargando en memoria cada vez, innecesario
+    private val getAppDrawerListThread = Runnable {
         val mainIntent = Intent(Intent.ACTION_MAIN, null)
         mainIntent.addCategory(Intent.CATEGORY_LAUNCHER)
 
         val apps = context.get()!!.packageManager.queryIntentActivities(mainIntent, 0)
-        Collections.sort(apps, ResolveInfo.DisplayNameComparator(context.get()!!.packageManager))
-        Thread {
-            var contador = 1
-            for (i in apps) {
-                if (i.activityInfo.packageName == context.get()!!.packageName) {
+        val packageNamesList = ArrayList<String>()
+        for (i in apps) {
+            packageNamesList.add(i.activityInfo.packageName)
+        }
+        if (apps.size - 2 < appList.value!!.size) {//-2: package duplicado y package del propio launcher
+            for (i in appList.value!!) {
+                if (!packageNamesList.contains(i.packageName)) {
+                    Thread { myDao!!.deleteApp(myDao.getAppById(i.id)) }.start()
+                    appSparseArrayLiveData.postValue(
+                            appSparseArrayLiveData.value!!.apply{
+                                this.delete(i.id)
+                            }
+                    )
+                }
+            }
+        } else if(apps.size - 2 > appList.value!!.size) {
+            var packageNameFound: Boolean
+            for (i in packageNamesList) {
+                packageNameFound = false
+                if (i == context.get()!!.packageName) {
                     continue
                 }
-                myDao!!.insertApp(AppIcon(
-                        i.activityInfo.packageName,
-                        Helper.getAppName(context.get()!!, i.activityInfo.packageName),
-                        (Helper.getActivityIcon(context.get()!!, i.activityInfo.packageName) as BitmapDrawable).bitmap,
-                        contador
-                ))
-                contador++
+                for (j in appList.value!!) {
+                    if (j.packageName == i) {
+                        packageNameFound = true
+                        break
+                    }
+                }
+                if (!packageNameFound) {
+                    Thread{
+                        myDao!!.insertApp(AppIcon(
+                            i,
+                            Helper.getAppName(context.get()!!, i),
+                            Helper.getActivityIcon(context.get()!!, i)
+                    ))
+                    }.start()
+                    break
+                }
+
             }
-        }.start()
+
+        }
 
     }
 
-    private val getStateListThread = Thread {
+    fun updateAppList() {
+        getAppDrawerListThread.run()
+    }
+
+    fun findAppByPackageName(packageName: String): AppIcon? {
+        for (i in appList.value!!) {
+            if (i.packageName == packageName) {
+                return i
+            }
+        }
+        return null
+    }
+
+    /*private val getStateListThread = Thread {
         for (i in -1 until nPages) { //page -1 corresponde a la barra de accesos directos
             stateListMap.put(i, stateDao!!.getAllStatesByPage(i))
             if(stateListMap.get(i).value != null) {
@@ -64,7 +107,7 @@ class Repository private constructor(ctx: Context) {
                 }
             }
         }
-    }
+    }*/
 
     /*
     private fun stateListIterationByPage(page: Int){
@@ -85,37 +128,50 @@ class Repository private constructor(ctx: Context) {
     }*/
 
     init {
+        appSparseArrayLiveData.value = SparseArray()
+        appList = myDao!!.getAppList()
         nPages = Helper.getFromSharedPreferences(context.get()!!.packageName,
                 "nPages", "0", context.get()!!.applicationContext)!!.toInt()
         if (nPages == 0) {
             nPages = 1
         }
-        getAppDrawerListThread.start()
-        appList = myDao!!.getAppList()
-        getStateListThread.start()
+
+        appList.observeForever {
+            appSparseArrayLiveData.postValue(
+                    appSparseArrayLiveData.value!!.apply {
+                        if(it.size>this.size()) {
+                            for (i in it) {
+                                if (!this.containsKey(i.id)) {
+                                    this.put(i.id, i)
+                                }
+                            }
+                        }
+                    }
+            )
+            Log.d("Repository", "appList has been updated")
+        }
+
+        val installEventBroadcastReceiver = InstallEventBroadcastReceiver()
+        val intentFilter = IntentFilter()
+        intentFilter.addAction(Intent.ACTION_PACKAGE_ADDED)
+        intentFilter.addAction(Intent.ACTION_PACKAGE_REMOVED)
+        intentFilter.addDataScheme("package")
+        context.get()!!.registerReceiver(installEventBroadcastReceiver, intentFilter)
     }
 
     fun updateState(obj: CustomLinearLayoutState) {
         stateDao!!.insertState(obj)
+        Log.d("Repository", "State updated")
     }
 
-    fun getAppById(appId: Int): AppIcon {
-        return myDao!!.getAppById(appId)
-    }
+    fun getAppById(id: Int): AppIcon = myDao!!.getAppById(id)
 
-    fun stateOccupied(packageName: String, page: Int, position: Int): Int {
-        val appId = myDao!!.getAppIdByPackageName(packageName)
 
+    fun stateOccupied(packageName: String, page: Int, position: Int) {
         val ok = stateDao!!.insertState(CustomLinearLayoutState(
                 page,
                 position,
-                appId
-        ))
-        appListMap[page].postValue(
-                appListMap[page].value.apply {
-                    this!!.put(position, appList.value!!.get(appId-1))
-                }
-        )
+                findAppByPackageName(packageName)!!.id))
 
         Log.d("debug", "Succesful operation $ok")
         /*nPages = Helper.getFromSharedPreferences(context.get()!!.packageName,
@@ -123,11 +179,11 @@ class Repository private constructor(ctx: Context) {
         if((page+1)>=nPages){
             stateListIterationByPage(page)
         }*/
-        return appId
     }
 
     fun deleteItem(page: Int, position: Int) {
         stateDao!!.deleteState(CustomLinearLayoutState(page, position))
+        Log.d("Repository", "item in $page $position deleted.")
         comprobeIfPageIsDeletable(page)
 
     }
@@ -136,8 +192,8 @@ class Repository private constructor(ctx: Context) {
         nPages = Helper.getFromSharedPreferences(context.get()!!.packageName,
                 "nPages", "0", context.get()!!.applicationContext)!!.toInt()
         if (page != 0 &&
-                (stateListMap.get(page).value != null
-                        || stateListMap.get(page).value!!.isEmpty())) {
+                (stateListMap.get(page).value == null
+                        || stateListMap.get(page).value!!.size == 1)) {
             if ((page + 1) < nPages) {
                 reallocatePages(page, nPages)
             }
@@ -159,29 +215,23 @@ class Repository private constructor(ctx: Context) {
         }
     }
 
-    fun getAppList(): LiveData<Array<AppIcon>> {
-        return appList
+    fun getAppList(): LiveData<SparseArray<AppIcon>> {
+        return appSparseArrayLiveData
     }
 
     fun getStateListByPage(page: Int): LiveData<Array<CustomLinearLayoutState>> {
         if (stateListMap.get(page) == null) {
             stateListMap.put(page, stateDao!!.getAllStatesByPage(page))
+            Log.d("Repository", "stateList of page $page added.")
         }
-        return stateListMap[page]
-    }
-
-    fun getAppListByPage(page: Int): MutableLiveData<SparseArray<AppIcon>> {
-        if(appListMap.get(page)==null){
-            appListMap.put(page, MutableLiveData())
-            appListMap.get(page).value = SparseArray()
-        }
-        return appListMap.get(page)
+        return stateListMap.get(page)
     }
 
     companion object {
         private var instance: Repository? = null
         fun newInstance(ctx: Context): Repository? {
             if (instance == null) {
+                Log.d("Repository", "New instance of repository")
                 instance = Repository(ctx)
             }
             return instance

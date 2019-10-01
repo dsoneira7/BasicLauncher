@@ -3,6 +3,7 @@ package com.example.basiclauncher.fragments
 import android.content.Context
 import androidx.lifecycle.ViewModelProviders
 import android.os.Bundle
+import android.util.SparseArray
 import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
@@ -32,13 +33,13 @@ class AppDrawerFragment : Fragment() {
 
     override fun onActivityCreated(savedInstanceState: Bundle?) {
         super.onActivityCreated(savedInstanceState)
-        viewModel = ViewModelProviders.of(this).get(AppDrawerViewModel::class.java)
+        viewModel = ViewModelProviders.of(this.activity!!).get(AppDrawerViewModel::class.java)
         if(viewModel.appArray.value != null){
             gridview.adapter = AppDrawerAdapter(context!!, viewModel.appArray.value!!) {onHoldAppIcon()}
         }
-        viewModel.appArray.observe(this, Observer<Array<AppIcon>>{
-            gridview.adapter = AppDrawerAdapter(context!!, it) {onHoldAppIcon()}
-        })
+        viewModel.appArray.observe(this, Observer<ArrayList<AppIcon>>{
+            gridview.adapter = AppDrawerAdapter(context!!, viewModel.appArray.value!!) {onHoldAppIcon()}
+        })//todo: optimizar con DiffUtil
     }
 
     override fun onAttach(context: Context) {

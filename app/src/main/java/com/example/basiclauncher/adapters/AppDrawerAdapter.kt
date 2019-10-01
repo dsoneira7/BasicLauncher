@@ -4,9 +4,11 @@ import android.content.ClipData
 import android.content.ClipDescription
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ResolveInfo
 import android.graphics.drawable.BitmapDrawable
 import android.os.Build
 import android.util.Log
+import android.util.SparseArray
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -16,13 +18,34 @@ import android.widget.TextView
 import androidx.core.content.ContextCompat
 import com.example.basiclauncher.R
 import com.example.basiclauncher.classes.AppIcon
+import java.util.*
+import kotlin.Comparator
+import kotlin.collections.ArrayList
 
 
 class AppDrawerAdapter(
         val mContext: Context,
-        var data: Array<AppIcon>,
+        var data: ArrayList<AppIcon>,
         var onHoldListener: () -> Unit
 ) : BaseAdapter() {
+
+    private val comparator = Comparator<AppIcon> { a, b ->
+        var aNameToCompare: String = if (a.appName == "") {
+            a.packageName
+        } else {
+            a.appName
+        }
+        var bNameToCompare: String = if (b.appName == "") {
+            b.packageName
+        } else {
+            b.appName
+        }
+        aNameToCompare.compareTo(bNameToCompare,true)
+    }
+
+    init{
+        Collections.sort(data, comparator)
+    }
 
     override fun getView(position: Int, view: View?, parent: ViewGroup?): View {
         var view2 = view

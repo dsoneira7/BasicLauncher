@@ -4,6 +4,7 @@ import android.app.Activity
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
 import android.graphics.ImageDecoder.createSource
 import android.graphics.ImageDecoder.decodeBitmap
 import android.graphics.drawable.BitmapDrawable
@@ -14,19 +15,13 @@ import android.provider.MediaStore
 import android.util.DisplayMetrics
 import android.util.Log
 import android.util.TypedValue
-import android.widget.LinearLayout
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.fragment.app.Fragment
 import com.example.basiclauncher.fragments.*
 import kotlinx.android.synthetic.main.activity_main.*
 import kotlinx.android.synthetic.main.fragment_main.*
-import android.appwidget.AppWidgetHost
-import android.appwidget.AppWidgetManager
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.graphics.Matrix
-import android.os.Parcelable
-import android.widget.Toast
 
 
 const val MAIN_FRAGMENT_TAG = "mainFragment"
@@ -47,26 +42,29 @@ const val ON_WALLPAPER_CLICK = 6
 const val ON_SETTINGS_CLICK = 7
 const val ON_WIDGET_CLICK = 8
 const val PLUS_ONE_PAGE = 9
+const val ON_GRID_CLICK_FROM_SMALLER_MODE = 10
 
-const val GALLERY_REQUEST_CODE = 10
-const val SETTINGS_ACTIVITY_CODE = 11
+const val GALLERY_REQUEST_CODE = 11
+const val SETTINGS_ACTIVITY_CODE = 12
+
+const val FRAGMENT_HIDE = 13
+const val FRAGMENT_REMOVE = 14
+const val FRAGMENT_SHOW = 15
+const val FRAGMENT_ADD = 16
+const val FRAGMENT_REPLACE = 17
 
 const val MAXIMUM_WIDTH = 720
 const val MAXIMUM_HEIGHT = 1280
 
 //todo: Posible bug: Desinstalamos app con accesos directos en página que se debería borrar ao non ter nada. Capturar intent do sistema de desintalación dunha app.
-//todo: Posible bug: É posible que desaparezan todas as páxinas?
-//todo: bug: Cambio de páxina en drag. Thread non aborta
-//todo: Hacer que si droppeas icono en zona sin draglistener no pase nada
 //https://guides.codepath.com/android/viewpager-with-fragmentpageradapter
 //todo: Capturar llamada del sistema de desinstalación de apk para borrar paginas que no tengan nada
-//todo: Utilizar llamadas del sistema para modificar bbdd de appdrawer
-//todo: Omitir basicLauncher en appList
 //todo: Mantener grandes cantidades de datos en tabla aparte con clave foranea hacia una primera
 //todo: databinding
 //todo: Igual es mejor guardar objeto grande serializado en vez de estado de cada no de los states
-//todo: A veces non se guarda a bbdd non sei moi ben por que
 //todo: Cambiar o destroy dos fragments para que se oculten en segundo plano, ejecuten as tareas e mostralos cando sexa necesario.
+//todo: ON_GRID_CLICK
+//todo: Volver a importar regla de sonar sobre codigo comentado
 
 class MainActivity : AppCompatActivity(),
         MainFragment.OnMainFragmentInteractionListener,
@@ -88,9 +86,10 @@ class MainActivity : AppCompatActivity(),
     private var smallerIconHeight = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
+        super.onCreate(null)
         setContentView(R.layout.activity_main)
         Repository.newInstance(applicationContext)!! //Inicializamos la clase repository
+        //window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_FULLSCREEN
         supportActionBar?.hide()
         iconSizeDataInitialize()
 
@@ -98,26 +97,21 @@ class MainActivity : AppCompatActivity(),
         if (bitmap != null) {
             window.setBackgroundDrawable(BitmapDrawable(resources, bitmap))
         }
-        val ft = supportFragmentManager.beginTransaction()
-        ft.add(R.id.container_main_fragment, MainFragment.newInstance(iconWidth, iconHeight, iconsPerRow, iconsPerColumn), MAIN_FRAGMENT_TAG)
-        ft.replace(R.id.app_drawer_container, ShortcutsBarFragment.newInstance(), SHORTCUTS_BAR_FRAGMENT_TAG)
-        ft.commit()
-        val linearLayout = findViewById<LinearLayout>(R.id.app_drawer_container)
+
+        fragmentOperation(FRAGMENT_ADD, R.id.container_main_fragment, MAIN_FRAGMENT_TAG, null)
+        fragmentOperation(FRAGMENT_REPLACE, R.id.app_drawer_container, SHORTCUTS_BAR_FRAGMENT_TAG, null)
     }
 
 
     private fun setCustomBackground(uri: Uri) {
-        Log.d("debug", "INICIO")
         var bitmap = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             decodeBitmap(createSource(contentResolver, uri))
         } else {
             MediaStore.Images.Media.getBitmap(this.contentResolver, uri)
         }
-        Log.d("debug", "MEDIO")
         bitmap = rescaleBitmap(bitmap)
         Runnable { Helper.setNewBackground(applicationContext, bitmap) }.run()
         window.setBackgroundDrawable(BitmapDrawable(resources, bitmap))
-        Log.d("debug", "FINAL")
     }
 
     private fun iconSizeDataInitialize() {
@@ -163,7 +157,6 @@ class MainActivity : AppCompatActivity(),
                 - resources.getDimension(R.dimen.container_small_margin_bottom).toInt()
                 - resources.getDimension(R.dimen.container_small_margin_top).toInt()) / iconsPerColumn
         smallerIconHeight = (mainFragmentHeight
-                + resources.getDimension(R.dimen.app_drawer_container_height).toInt()
                 - resources.getDimension(R.dimen.tablayout_height).toInt()
                 - resources.getDimension(R.dimen.container_smaller_margin_top).toInt()
                 - resources.getDimension(R.dimen.container_smaller_margin_bottom).toInt()) / iconsPerColumn
@@ -173,19 +166,14 @@ class MainActivity : AppCompatActivity(),
         val appDrawerFragment = supportFragmentManager.findFragmentByTag(APP_DRAWER_FRAGMENT_TAG)
         val settingsFragment = supportFragmentManager.findFragmentByTag(SETTINGS_FRAGMENT_TAG)
         if ((appDrawerFragment != null) && !(appDrawerFragment as AppDrawerFragment).isHidden) {
-            val ft = supportFragmentManager.beginTransaction()
-            ft.hide(appDrawerFragment)
-            ft.show(supportFragmentManager.findFragmentByTag(MAIN_FRAGMENT_TAG)!!)
-            ft.show(supportFragmentManager.findFragmentByTag(SHORTCUTS_BAR_FRAGMENT_TAG)!!)
-            ft.commit()
-
+            fragmentOperation(FRAGMENT_HIDE, 0, APP_DRAWER_FRAGMENT_TAG, null)
+            fragmentOperation(FRAGMENT_SHOW, R.id.container_main_fragment, MAIN_FRAGMENT_TAG, null)
+            fragmentOperation(FRAGMENT_SHOW, R.id.app_drawer_container, SHORTCUTS_BAR_FRAGMENT_TAG, null)
         } else if ((settingsFragment != null) && !(settingsFragment as SettingsFragment).isHidden) {
-            val ft = supportFragmentManager.beginTransaction()
-            ft.remove(settingsFragment)
-            ft.remove(supportFragmentManager.findFragmentByTag(SMALLER_MAIN_FRAGMENT_TAG)!!)
-            ft.add(R.id.container_main_fragment, MainFragment.newInstance(iconWidth, iconHeight, iconsPerRow, iconsPerColumn), MAIN_FRAGMENT_TAG)
-            ft.show(supportFragmentManager.findFragmentByTag(SHORTCUTS_BAR_FRAGMENT_TAG)!!)
-            ft.commit()
+            fragmentOperation(FRAGMENT_REMOVE, 0, SETTINGS_FRAGMENT_TAG, null)
+            fragmentOperation(FRAGMENT_REMOVE, 0, SMALLER_MAIN_FRAGMENT_TAG, null)
+            fragmentOperation(FRAGMENT_ADD, R.id.container_main_fragment, MAIN_FRAGMENT_TAG, null)
+            fragmentOperation(FRAGMENT_SHOW, R.id.app_drawer_container, SHORTCUTS_BAR_FRAGMENT_TAG, null)
         } else if (pager.currentItem != 0) {
             pager.currentItem = pager.currentItem - 1
         }
@@ -196,93 +184,47 @@ class MainActivity : AppCompatActivity(),
         var imageHeight = bitmap.height
         while (true) {
             if (imageWidth > MAXIMUM_WIDTH && imageHeight > MAXIMUM_HEIGHT) {
-                imageWidth = (imageWidth.toDouble()/1.5).toInt()
-                imageHeight = (imageHeight.toDouble()/1.5).toInt()
-            }
-            else{
+                imageWidth = (imageWidth.toDouble() / 1.5).toInt()
+                imageHeight = (imageHeight.toDouble() / 1.5).toInt()
+            } else {
                 return Bitmap.createScaledBitmap(bitmap, imageWidth, imageHeight, true)
             }
         }
     }
 
     override fun onMainFragmentInteraction(event: Int) { //todo: buscar una mejor manera de manejar constantes
-
-        if (event == ON_ICON_ATTACHED) {
-            val ft = supportFragmentManager.beginTransaction()
-            val smallMainFragment = supportFragmentManager.findFragmentByTag(SMALL_MAIN_FRAGMENT_TAG)
-            ft.hide(smallMainFragment!!)
-            val cancelFragment = supportFragmentManager.findFragmentByTag(UNNINSTALL_AND_CANCEL_FRAGMENT_TAG)
-            ft.hide(cancelFragment!!)
-            var mainFragment = supportFragmentManager.findFragmentByTag(MAIN_FRAGMENT_TAG)
-            if(mainFragment!=null){
-                ft.remove(mainFragment)
+        when (event) {
+            ON_ICON_ATTACHED -> {
+                fragmentOperation(FRAGMENT_REMOVE, 0, SMALL_MAIN_FRAGMENT_TAG, null) //todo: Necesario esconderlo?
+                fragmentOperation(FRAGMENT_HIDE, 0, UNNINSTALL_AND_CANCEL_FRAGMENT_TAG, null)
+                fragmentOperation(FRAGMENT_REMOVE, 0, MAIN_FRAGMENT_TAG, null)
+                fragmentOperation(FRAGMENT_HIDE, 0, APP_DRAWER_FRAGMENT_TAG, null)
+                fragmentOperation(FRAGMENT_ADD, R.id.container_main_fragment, MAIN_FRAGMENT_TAG, null)
+                fragmentOperation(FRAGMENT_SHOW, R.id.app_drawer_container, SHORTCUTS_BAR_FRAGMENT_TAG, null)
             }
-            ft.hide(supportFragmentManager.findFragmentByTag(APP_DRAWER_FRAGMENT_TAG)!!)
-
-                mainFragment = MainFragment.newInstance(iconWidth, iconHeight, iconsPerRow, iconsPerColumn) //todo:cambiar esto
-                ft.add(R.id.container_main_fragment, mainFragment, MAIN_FRAGMENT_TAG)
-
-            ft.show(supportFragmentManager.findFragmentByTag(SHORTCUTS_BAR_FRAGMENT_TAG)!!)
-            ft.commit()
-
-        }
-
-        if (event == ON_MAIN_MENU_HOLD) {
-            val ft = supportFragmentManager.beginTransaction()
-            val mainFragment = supportFragmentManager.findFragmentByTag(MAIN_FRAGMENT_TAG)
-            ft.hide(mainFragment!!)
-            ft.replace(R.id.container_main_fragment_small,
-                    MainFragment.newInstance(smallIconWidth.toInt(), smallIconHeight, iconsPerRow, iconsPerColumn),
-                    SMALL_MAIN_FRAGMENT_TAG)
-            linearLayout.bringToFront()
-            val cancelFragment = supportFragmentManager.findFragmentByTag(UNNINSTALL_AND_CANCEL_FRAGMENT_TAG)
-            if (cancelFragment != null) {
-                ft.show(cancelFragment)
-            } else {
-                ft.replace(R.id.linearLayout,
-                        UnninstallAndCancelFragment.newInstance(),
-                        UNNINSTALL_AND_CANCEL_FRAGMENT_TAG)
+            ON_MAIN_MENU_HOLD -> {
+                fragmentOperation(FRAGMENT_HIDE, 0, MAIN_FRAGMENT_TAG, null)
+                fragmentOperation(FRAGMENT_ADD, R.id.container_main_fragment_small, SMALL_MAIN_FRAGMENT_TAG, null)
+                linearLayout.bringToFront()
+                fragmentOperation(FRAGMENT_SHOW, R.id.linearLayout, UNNINSTALL_AND_CANCEL_FRAGMENT_TAG, null)
             }
-            ft.commitNow()
+            ON_EMPTY_CLICK -> {
+                fragmentOperation(FRAGMENT_HIDE, 0, MAIN_FRAGMENT_TAG, null)
+                fragmentOperation(FRAGMENT_REPLACE, R.id.container_main_fragment_smaller, SMALLER_MAIN_FRAGMENT_TAG, null)
+                fragmentOperation(FRAGMENT_HIDE, 0, SHORTCUTS_BAR_FRAGMENT_TAG, null)
+                fragmentOperation(FRAGMENT_REPLACE, R.id.container_settings, SETTINGS_FRAGMENT_TAG, null)
+            }
+            else -> onBackPressed()
         }
-
-        if (event == ON_EMPTY_CLICK) {
-            val ft = supportFragmentManager.beginTransaction()
-            ft.hide(supportFragmentManager.findFragmentByTag(MAIN_FRAGMENT_TAG)!!)
-            ft.replace(R.id.container_main_fragment_smaller,
-                    MainFragment.newInstance(smallerIconWidth.toInt(), smallerIconHeight, iconsPerRow, iconsPerColumn),
-                    SMALLER_MAIN_FRAGMENT_TAG)
-            ft.hide(supportFragmentManager.findFragmentByTag(SHORTCUTS_BAR_FRAGMENT_TAG)!!)
-            ft.replace(R.id.container_settings, SettingsFragment.newInstance(), SETTINGS_FRAGMENT_TAG)
-            ft.commit()
-        }
-
-
-        /*val ft = supportFragmentManager.beginTransaction() //todo: Quité una regla de Sonar sin querer
-        val mainFragment = supportFragmentManager.findFragmentByTag(MAIN_FRAGMENT_TAG)
-        ft.hide(mainFragment!!)
-        ft.replace(R.id.container_main_fragment_small, MainFragment.newInstance(getScreenMetrics().widthPixels/6), MAIN_FRAGMENT_TAG)
-        ft.commit()*/
     }
 
     override fun onFragmentInteraction() {
-        val ft = supportFragmentManager.beginTransaction()
-        val appDrawerFragment = supportFragmentManager.findFragmentByTag(APP_DRAWER_FRAGMENT_TAG)
-        if (appDrawerFragment != null) {
-            ft.hide(appDrawerFragment)
-        }
-        ft.show(supportFragmentManager.findFragmentByTag(SHORTCUTS_BAR_FRAGMENT_TAG)!!)
-        ft.remove(supportFragmentManager.findFragmentByTag(MAIN_FRAGMENT_TAG)!!)
+        fragmentOperation(FRAGMENT_HIDE, 0, APP_DRAWER_FRAGMENT_TAG, null)
+        fragmentOperation(FRAGMENT_SHOW, R.id.app_drawer_container, SHORTCUTS_BAR_FRAGMENT_TAG, null)
+        fragmentOperation(FRAGMENT_REMOVE, 0, MAIN_FRAGMENT_TAG, null)
         linearLayout.bringToFront()
-        val cancelFragment = supportFragmentManager.findFragmentByTag(UNNINSTALL_AND_CANCEL_FRAGMENT_TAG)
-        if (cancelFragment != null) {
-            ft.show(cancelFragment)
-        } else {
-            ft.replace(R.id.linearLayout, UnninstallAndCancelFragment.newInstance(), UNNINSTALL_AND_CANCEL_FRAGMENT_TAG)
-        }
-        ft.replace(R.id.container_main_fragment_small, MainFragment.newInstance(smallIconWidth.toInt(), smallIconHeight, iconsPerRow, iconsPerColumn), SMALL_MAIN_FRAGMENT_TAG)
-
-        ft.commitNow()
+        fragmentOperation(FRAGMENT_SHOW, R.id.linearLayout, UNNINSTALL_AND_CANCEL_FRAGMENT_TAG, null)
+        fragmentOperation(FRAGMENT_ADD, R.id.container_main_fragment_small, SMALL_MAIN_FRAGMENT_TAG, null)
     }
 
     override fun onUnninstallAndCancelFragmentInteraction(event: Int, app: String) {
@@ -327,7 +269,7 @@ class MainActivity : AppCompatActivity(),
                         .remove(supportFragmentManager.findFragmentByTag(SMALLER_MAIN_FRAGMENT_TAG)!!)
                         .remove(supportFragmentManager.findFragmentByTag(SETTINGS_FRAGMENT_TAG)!!)
                         .add(
-                                R.id.constraintlayout,
+                                R.appId.constraintlayout,
                                 WidgetPickFragment.newInstance(getScreenMetrics().widthPixels),
                                 WIDGET_PICK_FRAGMENT_TAG)
                         .commit()*/
@@ -344,54 +286,29 @@ class MainActivity : AppCompatActivity(),
         }
     }
 
-   /* fun addEmptyData(pickIntent: Intent) {
-        val customInfo = ArrayList<Parcelable>()
-        pickIntent.putParcelableArrayListExtra(AppWidgetManager.EXTRA_CUSTOM_INFO, customInfo)
-        val customExtras = ArrayList<Parcelable>()
-        pickIntent.putParcelableArrayListExtra(AppWidgetManager.EXTRA_CUSTOM_EXTRAS, customExtras)
-    };
-*/
     override fun onShortcutsBarFragmentInteraction(event: Int) {
         when (event) {
             OPEN_APP_DRAWER -> {
-                container_fragment_app_drawer.layoutParams = ConstraintLayout.LayoutParams(
-                        ConstraintLayout.LayoutParams.MATCH_PARENT,
-                        ConstraintLayout.LayoutParams.MATCH_PARENT
-                )
-                container_fragment_app_drawer.bringToFront()
-                val ft = supportFragmentManager.beginTransaction()
-                val mainFragment = supportFragmentManager.findFragmentByTag(MAIN_FRAGMENT_TAG)
-                ft.hide(mainFragment!!)
-                ft.hide(supportFragmentManager.findFragmentByTag(SHORTCUTS_BAR_FRAGMENT_TAG)!!)
-                var appDrawerFragment = supportFragmentManager.findFragmentByTag(APP_DRAWER_FRAGMENT_TAG)
-                if (appDrawerFragment == null) {
-                    appDrawerFragment = AppDrawerFragment.newInstance()
-                    ft.replace(R.id.container_fragment_app_drawer, appDrawerFragment, APP_DRAWER_FRAGMENT_TAG)
-                } else {
-                    ft.show(appDrawerFragment)
+                if (supportFragmentManager.findFragmentByTag(APP_DRAWER_FRAGMENT_TAG) == null) {
+                    container_fragment_app_drawer.layoutParams = ConstraintLayout.LayoutParams(
+                            ConstraintLayout.LayoutParams.MATCH_PARENT,
+                            ConstraintLayout.LayoutParams.MATCH_PARENT
+                    )
                 }
-                ft.commit()
+                container_fragment_app_drawer.bringToFront()
+                fragmentOperation(FRAGMENT_HIDE, 0, MAIN_FRAGMENT_TAG, null)
+                fragmentOperation(FRAGMENT_HIDE, 0, SHORTCUTS_BAR_FRAGMENT_TAG, null)
+                fragmentOperation(FRAGMENT_SHOW, R.id.container_fragment_app_drawer, APP_DRAWER_FRAGMENT_TAG, null)
             }
             else -> onMainFragmentInteraction(event)
         }
     }
 
     override fun onWidgetPickFragmentInteraction() {
-        val ft = supportFragmentManager.beginTransaction()
-        ft.remove(supportFragmentManager.findFragmentByTag(WIDGET_PICK_FRAGMENT_TAG)!!)
-        ft.add(
-                R.id.container_main_fragment_small,
-                MainFragment.newInstance(smallIconWidth.toInt(), smallIconHeight, iconsPerRow, iconsPerColumn),
-                SMALLER_MAIN_FRAGMENT_TAG
-        )
+        fragmentOperation(FRAGMENT_REMOVE, 0, WIDGET_PICK_FRAGMENT_TAG, null)
+        fragmentOperation(FRAGMENT_SHOW, R.id.container_main_fragment_small, SMALL_MAIN_FRAGMENT_TAG, null)
         linearLayout.bringToFront()
-        val cancelFragment = supportFragmentManager.findFragmentByTag(UNNINSTALL_AND_CANCEL_FRAGMENT_TAG)
-        if (cancelFragment != null) {
-            ft.show(cancelFragment)
-        } else {
-            ft.replace(R.id.linearLayout, UnninstallAndCancelFragment.newInstance(), UNNINSTALL_AND_CANCEL_FRAGMENT_TAG)
-        }
-        ft.commit()
+        fragmentOperation(FRAGMENT_SHOW, R.id.linearLayout, UNNINSTALL_AND_CANCEL_FRAGMENT_TAG, null)
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -400,15 +317,16 @@ class MainActivity : AppCompatActivity(),
             when (requestCode) {
                 GALLERY_REQUEST_CODE -> {
                     setCustomBackground(data!!.data!!)
-                    supportFragmentManager.beginTransaction()
-                            .remove(supportFragmentManager.findFragmentByTag(SETTINGS_FRAGMENT_TAG)!!)
-                            .remove(supportFragmentManager.findFragmentByTag(SMALLER_MAIN_FRAGMENT_TAG)!!)
-                            .show(supportFragmentManager.findFragmentByTag(MAIN_FRAGMENT_TAG)!!)
-                            .show(supportFragmentManager.findFragmentByTag(SHORTCUTS_BAR_FRAGMENT_TAG)!!)
-                            .commit()
+                    fragmentOperation(FRAGMENT_REMOVE, 0, SETTINGS_FRAGMENT_TAG, null)
+                    fragmentOperation(FRAGMENT_REMOVE, 0, SMALLER_MAIN_FRAGMENT_TAG, null)
+                    fragmentOperation(FRAGMENT_SHOW, R.id.container_main_fragment, MAIN_FRAGMENT_TAG, null)
+                    fragmentOperation(FRAGMENT_SHOW, R.id.app_drawer_container, SHORTCUTS_BAR_FRAGMENT_TAG, null)
                 }
                 SETTINGS_ACTIVITY_CODE -> {
-                    recreate()
+                    val sharedPref = getSharedPreferences(packageName + "_preferences", Context.MODE_PRIVATE)
+                    if (iconsPerRow != sharedPref.getString("dropdown_size", "0")!!.toInt()) {
+                        this.recreate()
+                    }
                 }
             }
         }
@@ -427,5 +345,61 @@ class MainActivity : AppCompatActivity(),
             result = resources.getDimensionPixelSize(resourceId)
         }
         return result
+    }
+
+    fun fragmentOperation(operation: Int, containerId: Int, tag: String, animation: Int?) {
+        val ft = supportFragmentManager.beginTransaction()
+
+        when (operation) {
+
+            FRAGMENT_ADD -> {
+                val fragment = selectFragmentByTag(tag)
+                ft.add(containerId, fragment, tag)
+            }
+
+            FRAGMENT_REPLACE -> {
+                val fragment = selectFragmentByTag(tag)
+                ft.replace(containerId, fragment, tag)
+            }
+
+            FRAGMENT_SHOW -> {
+                val fragment = supportFragmentManager.findFragmentByTag(tag)
+                if (fragment != null) {
+                    ft.show(fragment)
+                } else {
+                    fragmentOperation(FRAGMENT_REPLACE, containerId, tag, animation)
+                }
+            }
+
+            FRAGMENT_HIDE -> {
+                val fragment = supportFragmentManager.findFragmentByTag(tag)
+                if(fragment != null){
+                    ft.hide(fragment!!)
+                }
+            }
+
+            FRAGMENT_REMOVE -> {
+                val fragment = supportFragmentManager.findFragmentByTag(tag)
+                if (fragment != null) {
+                    ft.remove(fragment)
+                    fragment.onDestroy()
+                }
+            }
+        }
+
+        ft.commit()
+    }
+
+    fun selectFragmentByTag(tag: String): Fragment {
+        return when (tag) {
+            MAIN_FRAGMENT_TAG -> MainFragment.newInstance(iconWidth, iconHeight, iconsPerRow, iconsPerColumn)
+            SMALL_MAIN_FRAGMENT_TAG -> MainFragment.newInstance(smallIconWidth.toInt(), smallIconHeight, iconsPerRow, iconsPerColumn)
+            SMALLER_MAIN_FRAGMENT_TAG -> MainFragment.newInstance(smallerIconWidth.toInt(), smallerIconHeight, iconsPerRow, iconsPerColumn)
+            APP_DRAWER_FRAGMENT_TAG -> AppDrawerFragment.newInstance()
+            UNNINSTALL_AND_CANCEL_FRAGMENT_TAG -> UnninstallAndCancelFragment.newInstance()
+            SETTINGS_FRAGMENT_TAG -> SettingsFragment.newInstance()
+            SHORTCUTS_BAR_FRAGMENT_TAG -> ShortcutsBarFragment.newInstance()
+            else -> WidgetPickFragment.newInstance(getScreenMetrics().widthPixels)
+        }
     }
 }

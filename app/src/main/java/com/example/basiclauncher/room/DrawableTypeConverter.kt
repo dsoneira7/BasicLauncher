@@ -5,7 +5,7 @@ import android.graphics.BitmapFactory
 import android.util.Base64
 import androidx.room.TypeConverter
 import java.io.ByteArrayOutputStream
-
+//todo: adaptiveimageview
 class DrawableTypeConverter {
     companion object {
         private val byteArrayOutputStream = ByteArrayOutputStream()

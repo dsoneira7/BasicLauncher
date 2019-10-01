@@ -2,6 +2,7 @@ package com.example.basiclauncher.fragments
 
 import android.content.Context
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
@@ -9,10 +10,12 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProviders
 import com.example.basiclauncher.CustomLinearLayout
 import com.example.basiclauncher.OPEN_APP_DRAWER
 import com.example.basiclauncher.R
+import com.example.basiclauncher.classes.CustomLinearLayoutState
 import com.example.basiclauncher.viewmodels.ScreenSlidePagerViewModel
 import com.example.basiclauncher.viewmodels.ScreenSlidePagerViewModelFactory
 import kotlinx.android.synthetic.main.fragment_shortcuts_bar.*
@@ -46,6 +49,32 @@ class ShortcutsBarFragment : Fragment() {
         val view = inflater.inflate(R.layout.fragment_shortcuts_bar, container, false)
         viewModel = ViewModelProviders.of(this, ScreenSlidePagerViewModelFactory(activity!!.application, SHORTCUTS_BAR_PAGE)).get(ScreenSlidePagerViewModel::class.java)
         view.setOnTouchListener { view, motionEvent -> dragDrawer(view, motionEvent) }
+        viewModel.stateList.observe(this, Observer<Array<CustomLinearLayoutState>> {
+            Log.d("debug", "Observado un cambio en ShortcutsBar")
+            var contador = 0
+                for (i in 0..4) {
+                    if(contador<it.size && i == it[contador].position) {
+
+                            Log.d("ScreenSlidePagerFragmen", "States: " + it[contador].page + " position: " + it[contador].position)
+                            val cell = view!!.findViewById<CustomLinearLayout>((it[contador].position + 1))
+                            if (cell == null) {
+                                Log.d("ERROR", "Cell not found")
+                            } else if ((cell.isEmpty() || cell.getAppId() != it[contador].appId) && viewModel.appList.value!!.get(it[contador].appId) != null) {
+                                cell.setApp(viewModel.appList.value!!.get(it[contador].appId))
+                            }
+                        contador++
+                    }
+                    else{
+                        val cell = view!!.findViewById<CustomLinearLayout>(i + 1)
+                        if(cell!=null && !cell.isEmpty()) {
+                            cell.clear()
+                        }
+                        else{
+                            Log.d("ERROR", "Cell not found when trying to clean")
+                        }
+                    }
+                }
+        })
         for (i in 0 until 4) {
             val frameLayout = when (i) {
                 0 -> view.findViewById<FrameLayout>(R.id.container_shortcut_1)
@@ -54,17 +83,18 @@ class ShortcutsBarFragment : Fragment() {
                 else -> view.findViewById(R.id.container_shortcut_4)
             }
             val linearLayout = CustomLinearLayout(context, SHORTCUTS_BAR_PAGE, i)
-            if(viewModel.stateList.value != null) {
-            try{
-                var state = viewModel.stateList.value!![i]
+            linearLayout.id = (i + 1)
+            if (viewModel.stateList.value != null) {
+                try {
+                    var state = viewModel.stateList.value!![i]
 
-                if (state != null && state.appId != -1) {
-                    linearLayout.setApp(viewModel.appList.value!!.get(i).packageName)
+                    if (state != null && state.appId != -1 && viewModel.appList.value!!.get(state.appId) != null) {
+                        linearLayout.setApp(viewModel.appList.value!!.get(state.appId))
+                    }
+
+                } catch (e: ArrayIndexOutOfBoundsException) {
+
                 }
-            }
-            catch(e: ArrayIndexOutOfBoundsException){
-
-            }
             }
             linearLayout.layoutParams = FrameLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT,
@@ -89,7 +119,7 @@ class ShortcutsBarFragment : Fragment() {
     private fun onIconAttached(packageName: String, page: Int, position: Int) {
         if (packageName == "") {
             Thread {
-                viewModel.emptyState(page,position)
+                viewModel.emptyState(page, position)
             }.start()
             return
         }
@@ -103,7 +133,7 @@ class ShortcutsBarFragment : Fragment() {
         if (context is OnShortcutsBarFragmentInteractionListener) {
             listener = context
         } else {
-            throw RuntimeException(context.toString() + " must implement OnFragmentInteractionListener")
+            throw RuntimeException("$context must implement OnFragmentInteractionListener")
         }
     }
 

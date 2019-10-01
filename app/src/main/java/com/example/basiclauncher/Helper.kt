@@ -7,6 +7,7 @@ import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Canvas
 import android.graphics.drawable.Drawable
 import android.util.DisplayMetrics
 import android.util.Log
@@ -16,11 +17,16 @@ import java.io.*
 object Helper {
     val backgroundName = "background.png"
 
-    fun getActivityIcon(context: Context, packageName: String): Drawable {
+    fun getActivityIcon(context: Context, packageName: String): Bitmap {
         val activityName = getLauncherActivityName(context, packageName)
         val intent = Intent()
         intent.component = ComponentName(packageName, activityName)
-        return context.packageManager.resolveActivity(intent, 0).loadIcon(context.packageManager)
+        val icon = context.packageManager.resolveActivity(intent, 0).loadIcon(context.packageManager)
+        val bitmap = Bitmap.createBitmap(icon.intrinsicWidth, icon.intrinsicHeight, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        icon.setBounds(0,0,canvas.width, canvas.height)
+        icon.draw(canvas)
+        return bitmap
     }
 
     fun getAppName(context: Context, packageName: String): String{

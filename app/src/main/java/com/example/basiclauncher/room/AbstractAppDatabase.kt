@@ -1,10 +1,16 @@
 package com.example.basiclauncher.room
 
 import android.content.Context
+import android.content.Intent
+import android.content.pm.ResolveInfo
+import android.graphics.drawable.BitmapDrawable
 import androidx.lifecycle.LiveData
 import androidx.room.*
+import androidx.sqlite.db.SupportSQLiteDatabase
+import com.example.basiclauncher.Helper
 import com.example.basiclauncher.classes.AppIcon
 import com.example.basiclauncher.classes.CustomLinearLayoutState
+import java.util.*
 
 @Database(entities = [AppIcon::class, CustomLinearLayoutState::class], version = 1)
 @TypeConverters(DrawableTypeConverter::class)
@@ -20,9 +26,31 @@ abstract class AbstractAppDatabase : RoomDatabase() {
             if(instance == null){
                 synchronized(AbstractAppDatabase::class){
                     instance = Room.databaseBuilder(context.applicationContext, AbstractAppDatabase::class.java,
-                        "myDb.db").build()
+                        "myDb.db").addCallback(object : Callback(){
+                        override fun onCreate(db: SupportSQLiteDatabase) {
+                            super.onCreate(db)
+                            Thread{
+                                val mainIntent = Intent(Intent.ACTION_MAIN, null)
+                                mainIntent.addCategory(Intent.CATEGORY_LAUNCHER)
+
+                                val apps = context.packageManager.queryIntentActivities(mainIntent, 0)
+                                //Collections.sort(apps, ResolveInfo.DisplayNameComparator(context.packageManager))
+                                for (i in apps) {
+                                    if (i.activityInfo.packageName == context.packageName) {
+                                        continue
+                                    }
+                                    getInstance(context)!!.myDao().insertApp(AppIcon(
+                                            i.activityInfo.packageName,
+                                            Helper.getAppName(context, i.activityInfo.packageName),
+                                            Helper.getActivityIcon(context, i.activityInfo.packageName)
+                                    ))
+                                }
+                            }.start()
+                        }
+                    }).build()
+                    }
                 }
-            }
+
 
             return instance
         }
@@ -38,9 +66,6 @@ abstract class AbstractAppDatabase : RoomDatabase() {
 
         @Query("select * from apps where id=:id")
         fun getAppById(id: Int) : AppIcon
-
-        @Query("select id from apps where packageName=:packageName")
-        fun getAppIdByPackageName(packageName: String): Int
 
         @Delete
         fun deleteApp(obj: AppIcon)

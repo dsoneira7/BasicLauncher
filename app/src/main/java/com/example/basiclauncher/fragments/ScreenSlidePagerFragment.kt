@@ -6,12 +6,8 @@ import android.view.DragEvent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.GridLayout
-import android.widget.GridView
 import android.widget.LinearLayout
-import androidx.core.app.ActivityCompat.recreate
 import androidx.fragment.app.Fragment
-import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProviders
@@ -25,7 +21,8 @@ import com.example.basiclauncher.viewmodels.ScreenSlidePagerViewModel
 import com.example.basiclauncher.viewmodels.ScreenSlidePagerViewModelFactory
 import kotlinx.android.synthetic.main.viewpagerfragment.*
 
-const val LONG_HOLD_VALUE : Long = 1000
+const val LONG_HOLD_VALUE: Long = 1000
+
 class ScreenSlidePagerFragment : Fragment() {
 
     companion object {
@@ -36,12 +33,14 @@ class ScreenSlidePagerFragment : Fragment() {
     private lateinit var onPageChangeListener: (Int) -> Unit
 
     private lateinit var viewModel: ScreenSlidePagerViewModel
-    private lateinit var mainFragmentViewModel : MainFragmentViewModel
+    private lateinit var mainFragmentViewModel: MainFragmentViewModel
     private var iconWidth = 0
     private var iconHeight = 0
     private var page = 0
     private var isSmallFragment = 0
     private var nIcons = 0
+    private var interrupted = false
+
     private lateinit var pageGridData: MutableLiveData<Array<CustomLinearLayoutState>>
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -61,7 +60,7 @@ class ScreenSlidePagerFragment : Fragment() {
     override fun onActivityCreated(savedInstanceState: Bundle?) {
         super.onActivityCreated(savedInstanceState)
 
-        iconHeight = when(isSmallFragment){
+        iconHeight = when (isSmallFragment) {
             IS_NORMAL -> mainFragmentViewModel.iconHeight
             IS_SMALL -> mainFragmentViewModel.smallIconHeight
             IS_SMALLER -> mainFragmentViewModel.smallerIconHeight
@@ -74,77 +73,89 @@ class ScreenSlidePagerFragment : Fragment() {
 
         gridConfiguration()
 
-        gridlayout.setOnDragListener { view, dragEvent -> (customOnDragListener(view,dragEvent))}
-
-        if(isSmallFragment == IS_NORMAL){
-            viewModel.stateList.observe(this, Observer{
-                Log.d("debug", "Observado un cambio")
-                for (i in it){
-            val cell = view!!.findViewById<CustomLinearLayout>((page+1)*(i.position+1))
-            if(cell == null){
-                Log.d("ERROR", "Cell not found")
-            }
-            else if((cell.isEmpty() || cell.appId != i.appId) && viewModel.appList.value!!.get(i.position) != null){
-                cell.setApp(viewModel.appList.value!!.get(i.position))
-            }
+        gridlayout.setOnDragListener { view, dragEvent -> (customOnDragListener(view, dragEvent)) }
+        if (isSmallFragment == IS_NORMAL) {
+            viewModel.stateList.observe(this, Observer {
+                Log.d("debug", "Observado un cambio en pagina $page")
+                for (i in it) {
+                    Log.d("ScreenSlidePagerFragmen", "States: " + i.page + " position: " + i.position)
+                    val cell = view!!.findViewById<CustomLinearLayout>((page + 1) * (i.position + 1))
+                    if (cell == null) {
+                        Log.d("ERROR", "Cell not found")
+                    } else if ((cell.isEmpty() || cell.getAppId() != i.appId) && viewModel.appList.value!!.get(i.appId) != null) {
+                        cell.setApp(viewModel.appList.value!!.get(i.appId))
+                    }
+                }
+            })
         }
-    })
-}
     }
 
-    private fun gridConfiguration(){
-        val arrayOfStates = arrayOfNulls <CustomLinearLayoutState> (nIcons)
-        if(viewModel.stateList.value != null){
-            for(i in viewModel.stateList.value!!){
-                arrayOfStates[i.position] = i
+    private fun gridConfiguration() {
+        val arrayOfStates = arrayOfNulls<CustomLinearLayoutState>(nIcons)
+        Log.d("SCRENSLIDEPAGEFRAGMENT", "arrayOfNulls Done")
+        if (viewModel.stateList.value != null) {
+            for (i in viewModel.stateList.value!!) {
+                if (i.position >= arrayOfStates.size) {
+                    Thread {
+                        viewModel.emptyState(i.page, i.position)
+                    }.start()
+                } else {
+                    arrayOfStates[i.position] = i
+                }
             }
-        }
-        else{
+        } else {
             Log.d("debug", "value of LiveData null")
         }
         for (i in 0 until nIcons) {
             val linearLayout = CustomLinearLayout(context, page, i)
-            linearLayout.id = (page+1)*(i+1) //Elaboramos un id para cada celda así para que no coincida con ningún otro
-            linearLayout.attachListeners({ p1, p2, p3 -> onIconAttached(p1, p2, p3) },
-                    { onPostIconAttached(it) })
+            linearLayout.id = (page + 1) * (i + 1) //Elaboramos un appId para cada celda así para que no coincida con ningún otro
+            if (isSmallFragment != IS_SMALLER) {
+                linearLayout.attachListeners({ p1, p2, p3 -> onIconAttached(p1, p2, p3) },
+                        { onPostIconAttached(it) })
+            }
             linearLayout.layoutParams = LinearLayout.LayoutParams(
                     iconWidth,
                     iconHeight
             )
             var state: CustomLinearLayoutState? = null
-            if (arrayOfStates[i] != null){
-                Log.d("debugging","position $i not null")
-                try{
+            if (arrayOfStates[i] != null) {
+                try {
                     state = arrayOfStates[i]
-                }
-                catch(e : IndexOutOfBoundsException){
+                } catch (e: IndexOutOfBoundsException) {
                     e.printStackTrace()
                 }
             }
-            else{
-                Log.d("debugging","position $i null")
-            }
+
             if (state != null && state.appId != -1) { //todo: Optimizar para que solo se cambien los iconos que han cambiado
-                linearLayout.setApp(viewModel.appList.value!!.get(i))
+                linearLayout.setApp(viewModel.appList.value!!.get(state.appId))
             }
             //linearLayout.attachListeners{onIconMoving(it)}
             gridlayout.addView(linearLayout)
         }
+        if (isSmallFragment != IS_NORMAL) {
+            content.background.alpha = 100
+        } else {
+            content.background.alpha = 0
+        }
+        if (isSmallFragment == IS_SMALLER) {
+            gridlayout.setOnClickListener {
+                onPostIconAttached(ON_GRID_CLICK_FROM_SMALLER_MODE)
+            }
+        }
     }
 
     override fun onResume() {
-        if(isSmallFragment!=IS_NORMAL){
+        if (isSmallFragment != IS_NORMAL) {
             content.background.alpha = 100
-        }
-        else{
+        } else {
             content.background.alpha = 0
         }
         super.onResume()
     }
 
     private fun onIconAttached(packageName: String, page: Int, position: Int) {
-        if(packageName == ""){
-            Thread{
+        if (packageName == "") {
+            Thread {
                 viewModel.emptyState(page, position)
             }.start()
             return
@@ -152,46 +163,54 @@ class ScreenSlidePagerFragment : Fragment() {
         Thread {
             viewModel.stateOccupied(packageName, page, position)
         }.start()
-        if((page+1) > Helper.getFromSharedPreferences(this.activity!!.packageName,
-                "nPages", "0", this.activity!!.applicationContext)!!.toInt()){
+        if ((page + 1) > Helper.getFromSharedPreferences(this.activity!!.packageName,
+                        "nPages", "0", this.activity!!.applicationContext)!!.toInt()) {
             Helper.putInSharedPreferences(this.activity!!.packageName,
-                    "nPages", (page+1).toString(), this.activity!!.applicationContext)
+                    "nPages", (page + 1).toString(), this.activity!!.applicationContext)
             onIconAttachedListener(PLUS_ONE_PAGE)
         }
+        val states = viewModel.stateList.value!!
     }
 
-    private fun onPostIconAttached(event: Int){
+    private fun onPostIconAttached(event: Int) {
         onIconAttachedListener(event)
     }
 
-    fun attachListeners(onIconAttachedListener : (Int) -> Unit, onPageChangeListener: (Int) -> Unit) {
+    fun attachListeners(onIconAttachedListener: (Int) -> Unit, onPageChangeListener: (Int) -> Unit) {
         this.onIconAttachedListener = onIconAttachedListener
         this.onPageChangeListener = onPageChangeListener
     }
 
-    private fun customOnDragListener(v: View, event: DragEvent) : Boolean{
-        val longHoldThread = Thread{
-            Thread.sleep(LONG_HOLD_VALUE)
-            v.post{
-                onPageChangeListener(page)
+    private fun customOnDragListener(v: View, event: DragEvent): Boolean {
+        val longHoldThread = Thread {
+            try {
+                Thread.sleep(LONG_HOLD_VALUE)
+            } catch (e: InterruptedException) {
+                e.printStackTrace()
             }
-            mainFragmentViewModel.page = page
+            if (!interrupted) {
+                v.post {
+                    onPageChangeListener(page)
+                }
+                mainFragmentViewModel.page = page
+            }
         }
 
-        when (event.action){
-            DragEvent.ACTION_DRAG_ENTERED ->{
-                if(mainFragmentViewModel.page != page){
+        when (event.action) {
+            DragEvent.ACTION_DRAG_ENTERED -> {
+                if (mainFragmentViewModel.page != page) {
+                    interrupted = false
                     longHoldThread.start()
                 }
             }
 
-            DragEvent.ACTION_DRAG_EXITED ->{
+            DragEvent.ACTION_DRAG_EXITED -> {
                 longHoldThread.interrupt()
+                interrupted = true
             }
 
         }
         return true
     }
-
 
 }
