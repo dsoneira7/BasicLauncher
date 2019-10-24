@@ -30,7 +30,7 @@
             android:layout_weight="4"
             android:layout_gravity="center_horizontal"
             android:ellipsize="marquee"
-            android:text="WallPaper"
+            android:text="@string/wallpaper"
             android:gravity="center"
             android:layout_marginBottom="0dp"/>
     </LinearLayout>
@@ -45,14 +45,14 @@
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="8"
-            android:layout_margin="0dp"
+            android:layout_margin="16dp"
             android:src="@drawable/settings_icon" />
         <TextView
             android:id="@+id/textView_settings"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_weight="4"
-            android:text="Settings"
+            android:text="@string/settings"
             android:ellipsize="marquee"
             android:gravity="center"
             android:layout_gravity="center_horizontal"
@@ -75,11 +75,11 @@
         <TextView
             android:id="@+id/textView_widget"
             android:layout_width="wrap_content"
-            android:layout_height="0dp"
+            android:layout_height="wrap_content"
             android:layout_weight="4"
             android:layout_gravity="center_horizontal"
             android:gravity="center"
-            android:text="Widget"
+            android:text="@string/widget"
             android:ellipsize="marquee"
             android:layout_marginBottom="0dp"/>
     </LinearLayout>

@@ -12,36 +12,45 @@ import com.example.basiclauncher.Repository
 import com.example.basiclauncher.classes.AppIcon
 import java.util.*
 
-//todo: Valorar que la bbdd devuelva una lista
+/**
+ * Subclase de [AndroidViewModel] que se corresponde con un [AppDrawerFragment]. Contiene datos
+ * relativos a dicho fragmento y supone el punto de conexión con la clase [Repository].
+ */
 class AppDrawerViewModel(val app: Application) : AndroidViewModel(app) {
+    //Este liveData es el que viene directamente de la clase Repository
     var appLiveData: LiveData<SparseArray<AppIcon>>
-    val appArray = MutableLiveData<ArrayList<AppIcon>>()
+    //Este liveData se utiliza para mantener ordenados alfabéticamente los datos, es el que observa
+    //el AppDrawerFragment
+    val orderedAppArrayLiveData = MutableLiveData<ArrayList<AppIcon>>()
     private var repository = Repository.newInstance(app.applicationContext)
 
 
-
     private val observer = Observer<SparseArray<AppIcon>> {
-        if (it.size() > appArray.value!!.size) {
+        //Cuando observamos un cambio en las apps guardadas en la BBDD:
+        //Comprobamos si el tamaño de los datos nuevos es menor o mayor que el de los datos viejos
+        //Si es mayor tenemos que añadir los datos nuevos
+        if (it.size() > orderedAppArrayLiveData.value!!.size) {
             for (i in it.valueIterator()) {
-                if (!appArray.value!!.contains(i)) {
-                    appArray.postValue(
-                            appArray.value!!.apply {
+                if (!orderedAppArrayLiveData.value!!.contains(i)) {
+                    orderedAppArrayLiveData.postValue(
+                            orderedAppArrayLiveData.value!!.apply {
                                 this.add(i)
                             }
                     )
                 }
             }
         } else {
+            //Si es menor tenemos que borrar los datos que ya no deban estar
             var appIcon: AppIcon? = null
-            for (i in appArray.value!!) {
+            for (i in orderedAppArrayLiveData.value!!) {
                 if (!it.containsKey(i.id)) {
                     appIcon = i
                     break
                 }
             }
             if (appIcon != null) {
-                appArray.postValue(
-                        appArray.value!!.apply {
+                orderedAppArrayLiveData.postValue(
+                        orderedAppArrayLiveData.value!!.apply {
                             this.remove(appIcon)
                         }
                 )
@@ -52,12 +61,13 @@ class AppDrawerViewModel(val app: Application) : AndroidViewModel(app) {
     init {
         appLiveData = repository!!.getAppList()
         if (appLiveData.value != null) {
-            if (appArray.value == null) {
-                appArray.value = ArrayList()
+            if (orderedAppArrayLiveData.value == null) { //Inicializamos el liveData de ser necesario
+                orderedAppArrayLiveData.value = ArrayList()
             }
+            //Introducimos los datos del liveData "raw" en el otro
             for (i in appLiveData.value!!.valueIterator()) {
-                if (!appArray.value!!.contains(i)) {
-                    appArray.value!!.add(i)
+                if (!orderedAppArrayLiveData.value!!.contains(i)) {
+                    orderedAppArrayLiveData.value!!.add(i)
                 }
             }
         }

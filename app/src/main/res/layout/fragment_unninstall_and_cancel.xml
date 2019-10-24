@@ -1,45 +1,70 @@
 <?xml version="1.0" encoding="utf-8"?>
 
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/container_unninstall_internal"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="horizontal">
 
-    <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-        xmlns:app="http://schemas.android.com/apk/res-auto"
+    <FrameLayout
+        android:layout_height="0dp"
+        android:layout_width="0dp"
+        app:layout_constraintStart_toStartOf="@id/container_invalidate"
+        app:layout_constraintEnd_toEndOf="@id/container_invalidate"
+        app:layout_constraintTop_toTopOf="@id/container_invalidate"
+        app:layout_constraintBottom_toBottomOf="@id/container_invalidate"
+        android:id="@+id/container_invalidate_background"
+        android:background="@color/totalBlack"/>
+    <FrameLayout
+    android:layout_height="0dp"
+    android:layout_width="0dp"
+    app:layout_constraintStart_toStartOf="@id/container_unnistall"
+    app:layout_constraintEnd_toEndOf="@id/container_unnistall"
+    app:layout_constraintTop_toTopOf="@id/container_unnistall"
+    app:layout_constraintBottom_toBottomOf="@id/container_unnistall"
+    android:id="@+id/container_unninstall_background"
+        android:background="@color/totalBlack"/>
+
+    <LinearLayout
         android:id="@+id/container_invalidate"
         android:layout_width="0dp"
         android:layout_height="match_parent"
-        android:layout_weight="1"
-        android:orientation="horizontal">
+        android:orientation="horizontal"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/container_unnistall">
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:layout_gravity="center_horizontal"
             android:gravity="center_horizontal"
-            android:text="Anular operación"
+            android:text="@string/anular_operacion"
             android:textAlignment="center"
-            android:textSize="24sp"
-            app:autoSizeTextType="uniform" />
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:maxLines="1"
+            android:elegantTextHeight="true"/>
     </LinearLayout>
 
     <LinearLayout
         android:id="@+id/container_unnistall"
         android:layout_width="0dp"
         android:layout_height="match_parent"
-        android:layout_weight="1"
-        android:orientation="horizontal">
+        android:orientation="horizontal"
+        app:layout_constraintStart_toEndOf="@id/container_invalidate"
+        app:layout_constraintEnd_toEndOf="parent">
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:layout_gravity="center_horizontal"
             android:gravity="center_horizontal"
-            android:text="Desinstalar"
+            android:text="@string/desinstalar"
             android:textAlignment="center"
-            android:textSize="24sp"
-            app:autoSizeTextType="uniform" />
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:maxLines="1"
+            android:elegantTextHeight="true"/>
     </LinearLayout>
-</LinearLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>

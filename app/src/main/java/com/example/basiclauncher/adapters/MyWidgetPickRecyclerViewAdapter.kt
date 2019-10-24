@@ -4,27 +4,29 @@ import android.appwidget.AppWidgetProviderInfo
 import android.content.ClipData
 import android.content.ClipDescription
 import android.content.Context
+import android.graphics.Color
+import android.os.Build
 import android.util.DisplayMetrics
-import androidx.recyclerview.widget.RecyclerView
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
+import androidx.recyclerview.widget.RecyclerView
 import com.example.basiclauncher.Helper
 import com.example.basiclauncher.R
 import com.example.basiclauncher.fragments.WidgetPickFragment
 import kotlinx.android.synthetic.main.fragment_widget_pick.view.*
-import android.graphics.Color
-import android.os.Build
-import com.example.basiclauncher.ON_MAIN_MENU_HOLD
 
-
+/**
+ * Clase no utilizada actualmente, se utilizaba para mostrar una lista de los widgets disponibles
+ * en el sistema.
+ */
 class MyWidgetPickRecyclerViewAdapter(
         private val mValues: List<AppWidgetProviderInfo>,
         private val mListener: WidgetPickFragment.OnWidgetPickFragmentInteractionListener?,
-        private val context : Context,
-        private val screen_width : Int
+        private val context: Context,
+        private val screenWidth: Int
 ) : RecyclerView.Adapter<MyWidgetPickRecyclerViewAdapter.ViewHolder>() {
 
     private val mOnClickListener: View.OnLongClickListener = View.OnLongClickListener {
@@ -51,9 +53,10 @@ class MyWidgetPickRecyclerViewAdapter(
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val item = mValues[position]
-        val size = Helper.getGridSizeOfWidget(item,context,screen_width)
+        val size = Helper.getGridSizeOfWidget(item, context, screenWidth)
         holder.image.setImageDrawable(item.loadPreviewImage(context, DisplayMetrics.DENSITY_MEDIUM))
-        holder.text.text = item.loadLabel(context.packageManager) + size[0] + "x" + size[1]
+        val string = item.loadLabel(context.packageManager) + size[0] + "x" + size[1]
+        holder.text.text = string
         holder.text.setBackgroundColor(Color.WHITE)
         holder.text.background.alpha = 200
         with(holder.mView) {
@@ -65,7 +68,7 @@ class MyWidgetPickRecyclerViewAdapter(
     override fun getItemCount(): Int = mValues.size
 
     inner class ViewHolder(val mView: View) : RecyclerView.ViewHolder(mView) {
-        val image : ImageView = mView.image
+        val image: ImageView = mView.image
         val text: TextView = mView.text
     }
 }

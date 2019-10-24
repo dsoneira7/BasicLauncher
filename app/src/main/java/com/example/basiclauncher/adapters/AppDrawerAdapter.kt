@@ -4,11 +4,9 @@ import android.content.ClipData
 import android.content.ClipDescription
 import android.content.Context
 import android.content.Intent
-import android.content.pm.ResolveInfo
 import android.graphics.drawable.BitmapDrawable
 import android.os.Build
 import android.util.Log
-import android.util.SparseArray
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -20,30 +18,39 @@ import com.example.basiclauncher.R
 import com.example.basiclauncher.classes.AppIcon
 import java.util.*
 import kotlin.Comparator
-import kotlin.collections.ArrayList
 
-
+/**
+ * Subclase de [BaseAdapter] que se utiliza para introducir los datos de los aplicaciones
+ * disponibles en la [GridView] del App Drawer
+ *
+ * @param mContext: El contexto de la aplicación
+ * @param data: [ArrayList] de clases [AppIcon] que contiene las aplicaciones para mostrar
+ * @param onHoldListener: Método pasado por parámetros dedicado a comunicarle al fragmento contenedor el drag de un icono.
+ *
+ */
 class AppDrawerAdapter(
-        val mContext: Context,
+        private val mContext: Context,
         var data: ArrayList<AppIcon>,
         var onHoldListener: () -> Unit
 ) : BaseAdapter() {
 
+    //Comparator utilizado para ordenar por orden alfabético según el nombre que se vaya a mostrar.
+    //Prioritariamente se muestra el label de la aplicación, pero algunas no tienen.
     private val comparator = Comparator<AppIcon> { a, b ->
-        var aNameToCompare: String = if (a.appName == "") {
+        val aNameToCompare: String = if (a.appName == "") {
             a.packageName
         } else {
             a.appName
         }
-        var bNameToCompare: String = if (b.appName == "") {
+        val bNameToCompare: String = if (b.appName == "") {
             b.packageName
         } else {
             b.appName
         }
-        aNameToCompare.compareTo(bNameToCompare,true)
+        aNameToCompare.compareTo(bNameToCompare, true)
     }
 
-    init{
+    init {
         Collections.sort(data, comparator)
     }
 
@@ -53,16 +60,14 @@ class AppDrawerAdapter(
             val inflater = mContext.getSystemService(Context.LAYOUT_INFLATER_SERVICE) as LayoutInflater
             view2 = inflater.inflate(R.layout.item, null)
         }
+
+        //Setteamos icono y nombre
         view2!!.tag = data[position].packageName
         view2.findViewById<ImageView>(R.id.app_image)?.setImageDrawable(BitmapDrawable(mContext.resources, data[position].icon))
-        var name = data[position].appName
-        if (name.length > 16) {
-            name = name.substring(0, 13) + "..."
-        }
-
+        val name = data[position].appName
         view2.findViewById<TextView>(R.id.app_name)?.text = name
-        Log.d("debug", data[position].packageName)
 
+        //Si clickamos lanzamos intent de la aplicación
         view2.setOnClickListener {
             val launchIntent: Intent? = mContext.packageManager?.getLaunchIntentForPackage(data[position].packageName)
             if (launchIntent != null) {
@@ -89,6 +94,11 @@ class AppDrawerAdapter(
         return data.size
     }
 
+    /**
+     * Método destinado a iniciar el drag con los parámetros necesarios (packageName e icono para la
+     * sombra de draggeo. También se encarga de avisar al fragment contenedor para llevar a cabo las
+     * fragmentTransactions necesarias
+     */
     private fun onLongClick(v: View): Boolean {
         val item = ClipData.Item(v.tag as CharSequence)
         val mimeTypes = arrayOf(ClipDescription.MIMETYPE_TEXT_PLAIN)

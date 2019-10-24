@@ -2,30 +2,34 @@ package com.example.basiclauncher.fragments
 
 
 import android.content.Context
-import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import android.view.DragEvent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.animation.AnimationUtils
+import android.widget.FrameLayout
 import android.widget.Toast
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import com.example.basiclauncher.ON_ANULATE
 import com.example.basiclauncher.ON_UNNINSTALL
 import com.example.basiclauncher.R
+import com.example.basiclauncher.Repository
 import kotlinx.android.synthetic.main.fragment_unninstall_and_cancel.*
 
-// the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
 
 /**
- * A simple [Fragment] subclass.
- * Activities that contain this fragment must implement the
- * [UnninstallAndCancelFragment.OnFragmentInteractionListener] interface
- * to handle interaction events.
- * Use the [UnninstallAndCancelFragment.newInstance] factory method to
- * create an instance of this fragment.
+ * Subclase de [Fragment] que contiene un par de contenedores, los que se utilizan para que, al
+ * droppear un icono en ellos durante el drag, se desinstale la app correspondiente o se anule la
+ * operación.
  *
+ * Se debe utilizar el método factoría [newInstance] para crear una instancia. La actividad conte-
+ * nedora debe implementar [OnUnninstallAndCancelFragmentInteractionListener] para la comunicación.
  */
+
+
 class UnninstallAndCancelFragment : Fragment(), View.OnDragListener {
 
     private var listener: OnUnninstallAndCancelFragmentInteractionListener? = null
@@ -35,8 +39,9 @@ class UnninstallAndCancelFragment : Fragment(), View.OnDragListener {
                               savedInstanceState: Bundle?
     ): View {
         val view = inflater.inflate(R.layout.fragment_unninstall_and_cancel, container, false)
-/*        view.findViewById<LinearLayout>(R.appId.container_invalidate).setOnDragListener(this)
-        view.findViewById<LinearLayout>(R.appId.container_unnistall).setOnDragListener(this)*/
+        //Metemos un filtro sombreado grisáceo en lso contenedores
+        view.findViewById<FrameLayout>(R.id.container_unninstall_background).background = ColorDrawable(ContextCompat.getColor(context!!, R.color.blackHighAlpha))
+        view.findViewById<FrameLayout>(R.id.container_invalidate_background).background = ColorDrawable(ContextCompat.getColor(context!!, R.color.blackHighAlpha))
         return view
     }
 
@@ -51,7 +56,7 @@ class UnninstallAndCancelFragment : Fragment(), View.OnDragListener {
         if (context is OnUnninstallAndCancelFragmentInteractionListener) {
             listener = context
         } else {
-            throw RuntimeException(context.toString() + " must implement OnFragmentInteractionListener")
+            throw RuntimeException("$context must implement OnFragmentInteractionListener")
         }
     }
 
@@ -62,26 +67,49 @@ class UnninstallAndCancelFragment : Fragment(), View.OnDragListener {
 
     override fun onDrag(view: View?, event: DragEvent?): Boolean {
         when (event!!.action) {
+            //Si etnramos o salimos de los contenedores realizamos animaciones que le den un poco
+            //de gracia e intuitividad.
             DragEvent.ACTION_DRAG_ENTERED -> {
-                view!!.setBackgroundColor(Color.LTGRAY)
-            }
-            DragEvent.ACTION_DRAG_EXITED -> {
-                view!!.setBackgroundColor(Color.TRANSPARENT)
-            }
-            DragEvent.ACTION_DROP -> {
-                view!!.setBackgroundColor(Color.TRANSPARENT)
-                if (view.equals(container_invalidate)) {
-                    listener!!.onUnninstallAndCancelFragmentInteraction(ON_ANULATE, "")
-                } else {
-                    listener!!.onUnninstallAndCancelFragmentInteraction(ON_UNNINSTALL, event.clipData.getItemAt(0).text as String)
+                when (view!!.id) {
+                    R.id.container_invalidate -> container_invalidate_background.startAnimation(AnimationUtils.loadAnimation(context!!.applicationContext, R.anim.on_drag_select))
+                    R.id.container_unnistall -> container_unninstall_background.startAnimation(AnimationUtils.loadAnimation(context!!.applicationContext, R.anim.on_drag_select))
                 }
             }
-            DragEvent.ACTION_DRAG_ENDED -> {
-                if (view!!.equals(container_invalidate)) {
-                    if (!event.result) {
-                        Toast.makeText(context, "Has soltado el icono en una zona no habilitada.", Toast.LENGTH_LONG).show()
+            DragEvent.ACTION_DRAG_EXITED -> {
+                when (view!!.id) {
+                    R.id.container_invalidate -> container_invalidate_background.startAnimation(AnimationUtils.loadAnimation(context!!.applicationContext, R.anim.on_drag_unselect))
+                    R.id.container_unnistall -> container_unninstall_background.startAnimation(AnimationUtils.loadAnimation(context!!.applicationContext, R.anim.on_drag_unselect))
+                }
+            }
+            //Cuando se droppea se realizan las animaciones pertinentes y se avisa a la actividad
+            //contenedora para que haga las transacciones de fragmentos y las operaciones necesarias.
+            DragEvent.ACTION_DROP -> {
+                when (view!!.id) {
+                    R.id.container_invalidate -> container_invalidate_background.startAnimation(AnimationUtils.loadAnimation(context!!.applicationContext, R.anim.on_drag_unselect))
+                    R.id.container_unnistall -> container_unninstall_background.startAnimation(AnimationUtils.loadAnimation(context!!.applicationContext, R.anim.on_drag_unselect))
+                }
+                Thread {
+                    //Adicionalmente, si es necesario actualizar numero de paginas, iconos, etc,
+                    //se realiza en este momento a traves de la clase Repository
+                    Repository.newInstance(context!!.applicationContext)!!.updateIfNecessary()
+                }.start()
+                if (view == container_invalidate) {
                         listener!!.onUnninstallAndCancelFragmentInteraction(ON_ANULATE, "")
+                    } else {
+                        listener!!.onUnninstallAndCancelFragmentInteraction(ON_UNNINSTALL, (event.clipData.getItemAt(0).text as String).substringBefore(";"))
                     }
+
+            }
+            DragEvent.ACTION_DRAG_ENDED -> {
+                //Adicionalmente el contenedor de invalidar, se utiliza también para escuchar si la
+                //operación drag ha salido mal. Si el resultado ha sido erróneo o se suelta en una zona
+                //no válida, se avisa al usuario y se revierte el drag.
+                if (view!!.id == R.id.container_invalidate && !event.result) {
+                    Toast.makeText(context, "Has soltado el icono en una zona no habilitada.", Toast.LENGTH_LONG).show()
+                    Thread {
+                        Repository.newInstance(context!!.applicationContext)!!.revertLastDrag()
+                    }.start()
+                    listener!!.onUnninstallAndCancelFragmentInteraction(ON_ANULATE, "")
                 }
             }
         }
@@ -109,8 +137,6 @@ class UnninstallAndCancelFragment : Fragment(), View.OnDragListener {
          * Use this factory method to create a new instance of
          * this fragment using the provided parameters.
          *
-         * @param param1 Parameter 1.
-         * @param param2 Parameter 2.
          * @return A new instance of fragment UnninstallAndCancelFragment.
          */
         @JvmStatic

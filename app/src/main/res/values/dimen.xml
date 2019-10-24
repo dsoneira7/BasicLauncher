@@ -1,9 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <dimen name="viewpager_margin">-64dp</dimen>
-    <dimen name="viewpager_paddingLeft">24dp</dimen>
-    <dimen name="viewpager_paddingRight">12dp</dimen>
+    <dimen name="viewpager_margin">8dp</dimen>
+    <dimen name="viewpager_paddingLeft">35dp</dimen>
+    <dimen name="viewpager_paddingRight">70dp</dimen>
     <dimen name="viewpager_margin_fix">32dp</dimen>
+
+    <dimen name="changer_width">15dp</dimen>
+    <dimen name="changer_margin">5dp</dimen>
 
     <dimen name="container_small_margin_bottom">0dp</dimen>
     <dimen name="container_small_margin_top">50dp</dimen>

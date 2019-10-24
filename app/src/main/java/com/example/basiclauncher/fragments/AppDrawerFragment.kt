@@ -1,21 +1,26 @@
 package com.example.basiclauncher.fragments
 
 import android.content.Context
-import androidx.lifecycle.ViewModelProviders
 import android.os.Bundle
-import android.util.SparseArray
-import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.content.ContextCompat
+import androidx.fragment.app.Fragment
 import androidx.lifecycle.Observer
-import com.example.basiclauncher.adapters.AppDrawerAdapter
-
+import androidx.lifecycle.ViewModelProviders
 import com.example.basiclauncher.R
+import com.example.basiclauncher.adapters.AppDrawerAdapter
 import com.example.basiclauncher.classes.AppIcon
 import com.example.basiclauncher.viewmodels.AppDrawerViewModel
 import kotlinx.android.synthetic.main.app_drawer_fragment.*
 
+/**
+ * Subclase de [Fragment] que se contiene un [GridView] con las aplicaciones del sistema.
+ *
+ * Se debe utilizar el método factoría [newInstance] para crear una instancia. La actividad conte-
+ * nedora debe implementar [OnFragmentInteractionListener] para la comunicación.
+ */
 class AppDrawerFragment : Fragment() {
 
     private var listener: OnFragmentInteractionListener? = null
@@ -34,12 +39,16 @@ class AppDrawerFragment : Fragment() {
     override fun onActivityCreated(savedInstanceState: Bundle?) {
         super.onActivityCreated(savedInstanceState)
         viewModel = ViewModelProviders.of(this.activity!!).get(AppDrawerViewModel::class.java)
-        if(viewModel.appArray.value != null){
-            gridview.adapter = AppDrawerAdapter(context!!, viewModel.appArray.value!!) {onHoldAppIcon()}
+        gridview.setBackgroundColor(ContextCompat.getColor(context!!, R.color.whiteLowAlpha)) //Leve color blanco sombreado de fondo
+
+        if (viewModel.orderedAppArrayLiveData.value != null) { //Si el viewmodel ya contiene los datos, creamos el adaptador y se lo pasamos al gridView
+            gridview.adapter = AppDrawerAdapter(context!!, viewModel.orderedAppArrayLiveData.value!!) { onHoldAppIcon() }
         }
-        viewModel.appArray.observe(this, Observer<ArrayList<AppIcon>>{
-            gridview.adapter = AppDrawerAdapter(context!!, viewModel.appArray.value!!) {onHoldAppIcon()}
-        })//todo: optimizar con DiffUtil
+
+        //Observamos el listado de aplicaciones del sistema. Si hay algún cambio (instalación o desinstalación) pasamos el adaptador nuevo.
+        viewModel.orderedAppArrayLiveData.observe(this, Observer<ArrayList<AppIcon>> {
+            gridview.adapter = AppDrawerAdapter(context!!, viewModel.orderedAppArrayLiveData.value!!) { onHoldAppIcon() }
+        })
     }
 
     override fun onAttach(context: Context) {
@@ -60,10 +69,13 @@ class AppDrawerFragment : Fragment() {
         fun onFragmentInteraction()
     }
 
-    fun onHoldAppIcon(){
-            listener!!.onFragmentInteraction()
+    /**
+     * Método que se pasa por parámetros al adaptador para hacer un Callback a la activity cuando
+     * sea necesario hacer un cambio de fragmentos.
+     */
+    private fun onHoldAppIcon() {
+        listener!!.onFragmentInteraction()
     }
-
 
 
 }

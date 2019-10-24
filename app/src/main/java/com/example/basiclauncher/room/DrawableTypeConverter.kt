@@ -5,7 +5,7 @@ import android.graphics.BitmapFactory
 import android.util.Base64
 import androidx.room.TypeConverter
 import java.io.ByteArrayOutputStream
-//todo: adaptiveimageview
+
 class DrawableTypeConverter {
     companion object {
         private val byteArrayOutputStream = ByteArrayOutputStream()
@@ -21,8 +21,8 @@ class DrawableTypeConverter {
         @TypeConverter
         @JvmStatic
         fun stringToBitmap(value: String): Bitmap {
-            val bytes = Base64.decode(value,0)
-            return BitmapFactory.decodeByteArray(bytes,0, bytes.size)
+            val bytes = Base64.decode(value, 0)
+            return BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
         }
     }
 }

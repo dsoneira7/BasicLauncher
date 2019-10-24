@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">BasicLauncher</string>
+    <string name="icon_size">icon__size</string>
     <string-array name="array_size">
         <item>3</item>
         <item>4</item>
@@ -9,6 +10,10 @@
     </string-array>
     <string name="hello_blank_fragment">Hello blank fragment</string>
     <string name="title_activity_settings">SettingsActivity</string>
-
+    <string name="desinstalar">Desinstalar</string>
+    <string name="anular_operacion">Papelera</string>
+    <string name="widget">Widget</string>
+    <string name="settings">Settings</string>
+    <string name="wallpaper">WallPaper</string>
 
 </resources>

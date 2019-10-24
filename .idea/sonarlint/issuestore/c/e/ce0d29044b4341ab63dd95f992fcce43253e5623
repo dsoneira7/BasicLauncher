@@ -1,15 +1,0 @@
-
-dsquid:S2147™"ECombine this catch with the one at line 151, which has the same body.(ï­£Ä8¯š°£Ò-
-nsquid:CommentedOutCodeLine_"<This block of commented-out lines of code should be removed.(ª¾‘þþÿÿÿÿ8…”ð£Ò-
-vsquid:UselessImportCheck"FRemove this unused import 'com.example.basiclauncher.classes.AppIcon'.(®°êÓúÿÿÿÿ8¯š°£Ò-
-Gsquid:S1148ˆ"#Use a logger to log this exception.(€ÉÔ…ýÿÿÿÿ8«•ª£Ò-
-psquid:S3776-"RRefactor this method to reduce its Cognitive Complexity from 16 to the 15 allowed.(Žß÷ž8Ûµ£Ò-
-Gsquid:S1148š"#Use a logger to log this exception.(€ÉÔ…ýÿÿÿÿ8¯š°£Ò-
-hsquid:CommentedOutCodeLineu"<This block of commented-out lines of code should be removed.(ÓÉŸA8¯š°£Ò-
-Gsquid:S1148˜"#Use a logger to log this exception.(€ÉÔ…ýÿÿÿÿ8«•ª£Ò-
-Fsquid:S1148n"#Use a logger to log this exception.(€ÉÔ…ýÿÿÿÿ8¯š°£Ò-
-hsquid:CommentedOutCodeLine]"<This block of commented-out lines of code should be removed.(ÿ‹æ	8…”ð£Ò-
-Gsquid:S1148Š"#Use a logger to log this exception.(€ÉÔ…ýÿÿÿÿ8¯š°£Ò-
-asquid:UselessImportCheck"6Remove this unused import 'java.io.ObjectInputStream'.(Éæéœ8ˆ±Õ€Ò-
-gsquid:UselessImportCheck"7Remove this unused import 'java.io.ObjectOutputStream'.(é»Óºûÿÿÿÿ8¯š°£Ò-
-dsquid:S2147‰"ECombine this catch with the one at line 135, which has the same body.(ï­£Ä8¯š°£Ò-

@@ -1,11 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.preference.PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto">
+<androidx.preference.PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    >
 
-    <DropDownPreference
-        app:entries="@array/array_size"
-        app:entryValues="@array/array_size"
-        app:key="dropdown_size"
-        app:title="Cantidad de iconos por fila" />
+    <SeekBarPreference
+        android:key="@string/icon_size"
+        android:max="3"
+        android:title="Cantidad de iconos por fila" >
+
+    </SeekBarPreference>
+
 
 
 </androidx.preference.PreferenceScreen>
+    <!--<DropDownPreference-->
+    <!--app:key="icon_size"-->
+    <!--app:title="Cantidad de iconos por fila"-->
+    <!--app:entries="@array/array_size"-->
+    <!--app:entryValues="@array/array_size"/>-->
+
+    <!--android:thumb="@drawable/thumb_icon"-->
+    <!--android:layout="@layout/custom_seekbar"-->

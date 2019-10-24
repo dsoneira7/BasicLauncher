@@ -1,14 +1,15 @@
 package com.example.basiclauncher.fragments
 
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import android.util.Log
-import android.view.DragEvent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
-import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProviders
 import com.example.basiclauncher.*
@@ -21,8 +22,14 @@ import com.example.basiclauncher.viewmodels.ScreenSlidePagerViewModel
 import com.example.basiclauncher.viewmodels.ScreenSlidePagerViewModelFactory
 import kotlinx.android.synthetic.main.viewpagerfragment.*
 
-const val LONG_HOLD_VALUE: Long = 1000
+const val LONG_HOLD_VALUE: Long = 700
+const val CELL_NOT_FOUND: String = "Cell not found."
 
+/**
+ * Subclase de [Fragment] que se corresponde con cada una de las páginas del [ViewPager].
+ * Contiene una GridLayout que guarda la posición de nuestros iconos guardados.
+ * Se debe utilizar el método factoría [newInstance] para crear una instancia.
+ */
 class ScreenSlidePagerFragment : Fragment() {
 
     companion object {
@@ -30,115 +37,75 @@ class ScreenSlidePagerFragment : Fragment() {
     }
 
     private lateinit var onIconAttachedListener: (Int) -> Unit
-    private lateinit var onPageChangeListener: (Int) -> Unit
 
     private lateinit var viewModel: ScreenSlidePagerViewModel
+    //Guardamos una referencia al ViewModel del MainFragment contenedor para comunicar la pagina
+    //en la que se ha droppeado un icono u obtener el tamaño de los iconos.
     private lateinit var mainFragmentViewModel: MainFragmentViewModel
     private var iconWidth = 0
     private var iconHeight = 0
     private var page = 0
     private var isSmallFragment = 0
-    private var nIcons = 0
-    private var interrupted = false
+    private var numberOfIcons = 0
+    private lateinit var pageGridDataSaved: Array<CustomLinearLayoutState>
 
-    private lateinit var pageGridData: MutableLiveData<Array<CustomLinearLayoutState>>
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        iconWidth = arguments?.getInt("iconSize", iconWidth)!!  //todo:innecesario
         page = arguments?.getInt("position", page)!!
-        isSmallFragment = arguments?.getInt("isSmallFragment", isSmallFragment)!! //todo: Optimize
+        isSmallFragment = arguments?.getInt("isSmallFragment", isSmallFragment)!!
         mainFragmentViewModel = ViewModelProviders.of(this.activity!!).get(MainFragmentViewModel::class.java)
+        numberOfIcons = mainFragmentViewModel.iconsPerColumn * mainFragmentViewModel.iconsPerRow
         viewModel = ViewModelProviders.of(this, ScreenSlidePagerViewModelFactory(activity!!.application, page)).get(ScreenSlidePagerViewModel::class.java)
 
     }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?,
-                              savedInstanceState: Bundle?
-    ): View = inflater.inflate(R.layout.viewpagerfragment, container, false)
-
+                              savedInstanceState: Bundle?): View = inflater.inflate(R.layout.viewpagerfragment, container, false)
 
     override fun onActivityCreated(savedInstanceState: Bundle?) {
         super.onActivityCreated(savedInstanceState)
 
-        iconHeight = when (isSmallFragment) {
-            IS_NORMAL -> mainFragmentViewModel.iconHeight
-            IS_SMALL -> mainFragmentViewModel.smallIconHeight
-            IS_SMALLER -> mainFragmentViewModel.smallerIconHeight
-            else -> Log.d("debug", "ERROR") //todo
+        //Según que tamaño tenga el fragmento inicializamos los parámetros del tamñao de los iconos
+        when (isSmallFragment) {
+            IS_NORMAL -> {
+                iconHeight = mainFragmentViewModel.iconHeight
+                iconWidth = mainFragmentViewModel.iconWidth
+            }
+            IS_SMALL -> {
+                iconHeight = mainFragmentViewModel.smallIconHeight
+                iconWidth = mainFragmentViewModel.smallIconWidth.toInt()
+            }
+            IS_SMALLER -> {
+                iconHeight = mainFragmentViewModel.smallerIconHeight
+                iconWidth = mainFragmentViewModel.smallerIconWidth.toInt()
+            }
+            else -> Log.e("ERROR", "Constante errónea")
         }
 
-        nIcons = mainFragmentViewModel.iconsPerColumn * mainFragmentViewModel.iconsPerRow
         gridlayout.columnCount = mainFragmentViewModel.iconsPerRow
         gridlayout.rowCount = mainFragmentViewModel.iconsPerColumn
 
         gridConfiguration()
 
-        gridlayout.setOnDragListener { view, dragEvent -> (customOnDragListener(view, dragEvent)) }
-        if (isSmallFragment == IS_NORMAL) {
-            viewModel.stateList.observe(this, Observer {
-                Log.d("debug", "Observado un cambio en pagina $page")
-                for (i in it) {
-                    Log.d("ScreenSlidePagerFragmen", "States: " + i.page + " position: " + i.position)
-                    val cell = view!!.findViewById<CustomLinearLayout>((page + 1) * (i.position + 1))
-                    if (cell == null) {
-                        Log.d("ERROR", "Cell not found")
-                    } else if ((cell.isEmpty() || cell.getAppId() != i.appId) && viewModel.appList.value!!.get(i.appId) != null) {
-                        cell.setApp(viewModel.appList.value!!.get(i.appId))
-                    }
-                }
-            })
+        //Nunca va a haber un cambio en los iconos cuando el fragmento es pequeño (ajustes), por
+        //lo que no es necesario observar los cambios. En los otros casos si es necesario, también
+        //porque son fragmentos que están siempre activos y necesitan actualizarse con los cambios
+        if (isSmallFragment != IS_SMALLER) {
+            viewModel.stateList.observe(this, observer)
         }
-    }
 
-    private fun gridConfiguration() {
-        val arrayOfStates = arrayOfNulls<CustomLinearLayoutState>(nIcons)
-        Log.d("SCRENSLIDEPAGEFRAGMENT", "arrayOfNulls Done")
-        if (viewModel.stateList.value != null) {
-            for (i in viewModel.stateList.value!!) {
-                if (i.position >= arrayOfStates.size) {
-                    Thread {
-                        viewModel.emptyState(i.page, i.position)
-                    }.start()
-                } else {
-                    arrayOfStates[i.position] = i
-                }
-            }
-        } else {
-            Log.d("debug", "value of LiveData null")
-        }
-        for (i in 0 until nIcons) {
-            val linearLayout = CustomLinearLayout(context, page, i)
-            linearLayout.id = (page + 1) * (i + 1) //Elaboramos un appId para cada celda así para que no coincida con ningún otro
-            if (isSmallFragment != IS_SMALLER) {
-                linearLayout.attachListeners({ p1, p2, p3 -> onIconAttached(p1, p2, p3) },
-                        { onPostIconAttached(it) })
-            }
-            linearLayout.layoutParams = LinearLayout.LayoutParams(
-                    iconWidth,
-                    iconHeight
-            )
-            var state: CustomLinearLayoutState? = null
-            if (arrayOfStates[i] != null) {
-                try {
-                    state = arrayOfStates[i]
-                } catch (e: IndexOutOfBoundsException) {
-                    e.printStackTrace()
-                }
-            }
-
-            if (state != null && state.appId != -1) { //todo: Optimizar para que solo se cambien los iconos que han cambiado
-                linearLayout.setApp(viewModel.appList.value!!.get(state.appId))
-            }
-            //linearLayout.attachListeners{onIconMoving(it)}
-            gridlayout.addView(linearLayout)
-        }
+        //Si el fragmento es grande, el fondo es transparente, por el contrario, si no lo es,
+        //ponemos un filtro grisáceo translúcido.
         if (isSmallFragment != IS_NORMAL) {
-            content.background.alpha = 100
+            content.background = ColorDrawable(ContextCompat.getColor(context!!, R.color.blackLowAlpha))
         } else {
-            content.background.alpha = 0
+            content.background = ColorDrawable(Color.TRANSPARENT)
         }
+
+        //Si el fragmento es pequeño también queremos que cuando clickemos en el grid nos lleve a la
+        //página correspondiente y nos devuelva al modo normal
         if (isSmallFragment == IS_SMALLER) {
-            gridlayout.setOnClickListener {
+            view!!.setOnClickListener {
                 onPostIconAttached(ON_GRID_CLICK_FROM_SMALLER_MODE)
             }
         }
@@ -146,71 +113,158 @@ class ScreenSlidePagerFragment : Fragment() {
 
     override fun onResume() {
         if (isSmallFragment != IS_NORMAL) {
-            content.background.alpha = 100
+            content.setBackgroundColor(ContextCompat.getColor(context!!, R.color.blackLowAlpha))
         } else {
-            content.background.alpha = 0
+            content.setBackgroundColor(Color.TRANSPARENT)
         }
         super.onResume()
     }
 
+    //El observer se encarga de observar los datos, compararlos con la anterior muestra de datos
+    //que ha quedado guardado, y realizar los cambios necesarios.
+    private val observer: Observer<Array<CustomLinearLayoutState>> = Observer {
+        //Si no hay datos guardados (primera observación) pintamos todos los iconos, y guardamos
+        //los datos, si no, comparamos los datos nuevos con los guardados
+        if (::pageGridDataSaved.isInitialized) {
+                //Comprobamos primero si hay iconos anteriores que ahora ya no están
+                for (i in pageGridDataSaved) {
+                    if (!it.contains(i)) {
+                        //Si se da el caso, buscamos la celda correspondiente en la vista y la limpiamos
+                        //Cuando se crea la celda se le asigna un id arbitrario que depende de página y posición
+                        val cell = view!!.findViewById<CustomLinearLayout>((page + 1) * (i.position + 1))
+                        if (cell != null && !cell.isEmpty()) {
+                            cell.clear()
+                        } else {
+                            Log.d("ERROR", CELL_NOT_FOUND)
+                        }
+                    }
+                }
+                //Comprobamos después si hay iconos nuevos que debemos pintar. Actuamos de manera análoga.
+                //Se podría comprobar el tamaño de los datos guardados y de los nuevos para proceder
+                //a comprobar solo cuales se han añadido o cuales se han quitado, pero empíricamente
+                //se ha comprobado que a veces hay cambios de más de un elemento. Además esto generaba
+                //problemas cuando se eliminaba alguna página de en medio y se realojaban los iconos
+                //de las páginas correspondientes
+                for (i in it) {
+                    if (!pageGridDataSaved.contains(i)) {
+                        val cell = view!!.findViewById<CustomLinearLayout>((page + 1) * (i.position + 1))
+                        //Es necesario comprobar si la celda existe (!= null). Si no tenemos la app
+                        //correspondiente guardada o si estamos droppeando un icono en una celda
+                        //que ya contiene ese mismo iconos no pintamos nada.
+                        if (cell == null) {
+                            Log.d("ERROR", CELL_NOT_FOUND)
+                        } else if ((cell.isEmpty() || cell.getAppId() != i.appId) && viewModel.appList.value!!.get(i.appId) != null) {
+                            cell.setApp(viewModel.appList.value!!.get(i.appId))
+                        }
+                    }
+                }
+
+        } else {
+            //Pintamos todos los iconos
+            for (i in it) {
+                val cell = view!!.findViewById<CustomLinearLayout>((page + 1) * (i.position + 1))
+                if (cell == null) {
+                    Log.d("ERROR", CELL_NOT_FOUND)
+                } else if ((cell.isEmpty() || cell.getAppId() != i.appId) && viewModel.appList.value!!.get(i.appId) != null) {
+                    cell.setApp(viewModel.appList.value!!.get(i.appId))
+                }
+            }
+        }
+        //Guardamos los datos de esta iteración para comparar con los próximos que lleguen
+        pageGridDataSaved = it
+    }
+
+    /**
+     * Esta función hace una configuración inicial necesaria en la GridLayout, creando las celdas
+     * necesarias y pintando los iconos si hay datos guardados al respecto
+     */
+    private fun gridConfiguration() {
+        val arrayOfStates = arrayOfNulls<CustomLinearLayoutState>(numberOfIcons)
+        //Metemos todos los CustomLinearLayoutStates guardados en un array que nos permite interactuar
+        //de una manera mas intuitiva y fácil con ellos.
+
+        if (viewModel.stateList.value != null) {
+            for (i in viewModel.stateList.value!!) {
+                //Si se ha hehco un cambio de tamaño del grid,
+                //de más grande a más pequeño, y hay iconos que se quedan fuera del grid, se borran de la BBDD
+                if (i.position >= arrayOfStates.size) {
+                    Thread {
+                        viewModel.emptyState(i.page, i.position)
+                    }.start()
+                } else {
+                    //El array creado contiene nulos en las posiciones donde no hay nada.
+                    arrayOfStates[i.position] = i
+                }
+            }
+        }
+
+        //Ahora podemos interactuar secuencialmente con cada una de las celdas, teniendo un state
+        //correspondiente a cada una de las iteraciones. numberOfIcons es producto de iconsPerRow*iconsPerColumn
+        for (i in 0 until numberOfIcons) {
+            //Instanciamos la celda. Si el fragmento no es grande, la celda no necesita
+            //implementar longHoldListeners ni los mismos OnClickListeners.
+            val linearLayout = if (isSmallFragment == IS_NORMAL) {
+                CustomLinearLayout(context, page, i, true)
+            } else {
+                CustomLinearLayout(context, page, i, false)
+            }
+            //Callbacks para interactuar con los fragmentos contenedores según sea necseario
+            //El primero se utiliza para actualizar la BBDD, y el segundo para varias operaciones,
+            //como avisar de un LongClick o de un drop en la celda en cuestión.
+            linearLayout.attachListeners({ p1, p2, p3 -> onIconAttached(p1, p2, p3) },
+                    { onPostIconAttached(it) })
+
+            linearLayout.id = (page + 1) * (i + 1) //Asignamos un ID arbitrario para identificarla después
+
+            linearLayout.layoutParams = LinearLayout.LayoutParams(iconWidth, iconHeight)
+
+            //Si el state correspondiente no es nulo y tiene una app asignada, setteamos esta celda.
+            if (arrayOfStates[i] != null && arrayOfStates[i]!!.appId != -1) {
+                //La info sobre la appIcon se guarda en el viewmodel.
+                linearLayout.setApp(viewModel.appList.value!!.get(arrayOfStates[i]!!.appId))
+            }
+
+            //Añadimos la celda.
+            gridlayout.addView(linearLayout)
+        }
+    }
+
     private fun onIconAttached(packageName: String, page: Int, position: Int) {
+        //Si el packageName está vacío, significa que hay que borrar el state de la BBDD, por ejemplo,
+        //cuando se inicia el drag.
         if (packageName == "") {
             Thread {
                 viewModel.emptyState(page, position)
             }.start()
             return
         }
+        //Por el contrario si packageName no está vacío, significa que se ha hecho un drop y interac-
+        //tuamos con el viewmodel para actualizar la BBDD
         Thread {
+            mainFragmentViewModel.page = page
             viewModel.stateOccupied(packageName, page, position)
         }.start()
+        //Si además el drop se ha hehco en una página nueva actualizamos el valor del número de paginas
+        //de las sharedPreferences.
         if ((page + 1) > Helper.getFromSharedPreferences(this.activity!!.packageName,
                         "nPages", "0", this.activity!!.applicationContext)!!.toInt()) {
             Helper.putInSharedPreferences(this.activity!!.packageName,
                     "nPages", (page + 1).toString(), this.activity!!.applicationContext)
-            onIconAttachedListener(PLUS_ONE_PAGE)
         }
-        val states = viewModel.stateList.value!!
     }
 
+    /**
+     * Se utiliza para interactuar directamente con el [MainFragment] padre
+     */
     private fun onPostIconAttached(event: Int) {
         onIconAttachedListener(event)
     }
 
-    fun attachListeners(onIconAttachedListener: (Int) -> Unit, onPageChangeListener: (Int) -> Unit) {
+    /**
+     * Método que enlaza los callbacks del [MainFragment] padre
+     */
+    fun attachListeners(onIconAttachedListener: (Int) -> Unit) {
         this.onIconAttachedListener = onIconAttachedListener
-        this.onPageChangeListener = onPageChangeListener
-    }
-
-    private fun customOnDragListener(v: View, event: DragEvent): Boolean {
-        val longHoldThread = Thread {
-            try {
-                Thread.sleep(LONG_HOLD_VALUE)
-            } catch (e: InterruptedException) {
-                e.printStackTrace()
-            }
-            if (!interrupted) {
-                v.post {
-                    onPageChangeListener(page)
-                }
-                mainFragmentViewModel.page = page
-            }
-        }
-
-        when (event.action) {
-            DragEvent.ACTION_DRAG_ENTERED -> {
-                if (mainFragmentViewModel.page != page) {
-                    interrupted = false
-                    longHoldThread.start()
-                }
-            }
-
-            DragEvent.ACTION_DRAG_EXITED -> {
-                longHoldThread.interrupt()
-                interrupted = true
-            }
-
-        }
-        return true
     }
 
 }
