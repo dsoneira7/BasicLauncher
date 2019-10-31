@@ -16,4 +16,9 @@
     <string name="settings">Settings</string>
     <string name="wallpaper">WallPaper</string>
 
+    <string name="select_option">Selecciona una opción</string>
+    <string name="image_from_device">Imagen almacenada en dispositivo</string>
+    <string name="image_from_camera">Capturar una fotografía con la cámara</string>
+    <string name="white_background">Poner fondo blanco</string>
+    <string name="complete_action_with">Completar acción con: </string>
 </resources>

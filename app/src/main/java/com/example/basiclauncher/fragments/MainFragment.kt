@@ -4,7 +4,6 @@ import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
 import android.content.Context
 import android.os.Bundle
-import android.util.Log
 import android.view.DragEvent
 import android.view.LayoutInflater
 import android.view.View
@@ -16,9 +15,13 @@ import android.widget.Toast
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProviders
 import androidx.viewpager.widget.ViewPager
 import com.example.basiclauncher.*
+import com.example.basiclauncher.activities.ON_ICON_ATTACHED
+import com.example.basiclauncher.activities.SMALLER_MAIN_FRAGMENT_TAG
+import com.example.basiclauncher.activities.SMALL_MAIN_FRAGMENT_TAG
 import com.example.basiclauncher.adapters.IS_NORMAL
 import com.example.basiclauncher.adapters.IS_SMALL
 import com.example.basiclauncher.adapters.IS_SMALLER
@@ -26,10 +29,10 @@ import com.example.basiclauncher.adapters.ScreenSlidePagerAdapter
 import com.example.basiclauncher.viewmodels.MainFragmentViewModel
 import kotlinx.android.synthetic.main.fragment_main.*
 
-private const val ARG_PARAM1 = "param1"
-private const val ARG_PARAM2 = "param2"
-private const val ARG_PARAM3 = "param3"
-private const val ARG_PARAM4 = "param4"
+private const val ARG_ICON_WIDTH = "iconWidth"
+private const val ARG_ICON_HEIGHT = "iconHeight"
+private const val ARG_NUMBER_OF_COLUMNS = "numberOfColumns"
+private const val ARG_NUMBER_OF_ROWS = "numberOfRows"
 const val CHANGER_ANIMATION_DURATION = 200L
 
 /**
@@ -50,8 +53,7 @@ class MainFragment : Fragment(), ViewPager.OnPageChangeListener {
     private var numberOfRows: Int = 0
     private var listener: OnMainFragmentInteractionListener? = null
     private lateinit var viewModel: MainFragmentViewModel
-    private var threadInterrupted = true
-    private var nPages: Int = 0
+    @Volatile private var threadInterrupted = true
     private lateinit var leftChangeListenerLayout: LinearLayout
     private lateinit var rightChangeListenerLayout: LinearLayout
     private lateinit var pagerContainer: LinearLayout
@@ -61,11 +63,12 @@ class MainFragment : Fragment(), ViewPager.OnPageChangeListener {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         arguments?.let {
-            iconWidth = it.getInt(ARG_PARAM1)
-            iconHeight = it.getInt(ARG_PARAM2)
-            numberOfColumns = it.getInt(ARG_PARAM3)
-            numberOfRows = it.getInt(ARG_PARAM4)
+            iconWidth = it.getInt(ARG_ICON_WIDTH)
+            iconHeight = it.getInt(ARG_ICON_HEIGHT)
+            numberOfColumns = it.getInt(ARG_NUMBER_OF_COLUMNS)
+            numberOfRows = it.getInt(ARG_NUMBER_OF_ROWS)
         }
+        viewModel = ViewModelProviders.of(this.activity!!).get(MainFragmentViewModel::class.java)
     }
 
     /**
@@ -84,9 +87,8 @@ class MainFragment : Fragment(), ViewPager.OnPageChangeListener {
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?,
                               savedInstanceState: Bundle?): View? {
         val view = inflater.inflate(R.layout.fragment_main, container, false)
-        viewModel = ViewModelProviders.of(this.activity!!).get(MainFragmentViewModel::class.java)
 
-        var isSmall = IS_NORMAL
+        var fragmentClassification = IS_NORMAL
 
         //Guardamos en el viewmodel cada uno de los tamaños en pixeles de los iconos que se corres-
         //ponden con el tipo de fragmento en cuestión
@@ -96,12 +98,12 @@ class MainFragment : Fragment(), ViewPager.OnPageChangeListener {
                 //los layouts utilizados para cambiar de página en los laterales
                 rightChangeListenerLayout = view.findViewById(R.id.right_change_listener)
                 leftChangeListenerLayout = view.findViewById(R.id.left_change_listener)
-                isSmall = IS_SMALL
+                fragmentClassification = IS_SMALL
                 viewModel.smallIconHeight = iconHeight
                 viewModel.smallIconWidth = iconWidth.toFloat()
             }
             SMALLER_MAIN_FRAGMENT_TAG -> {
-                isSmall = IS_SMALLER
+                fragmentClassification = IS_SMALLER
                 viewModel.smallerIconHeight = iconHeight
                 viewModel.smallerIconWidth = iconWidth.toFloat()
             }
@@ -112,22 +114,13 @@ class MainFragment : Fragment(), ViewPager.OnPageChangeListener {
                 viewModel.iconHeight = iconHeight
             }
         }
-
-        nPages = Integer.parseInt(Helper.getFromSharedPreferences(this.activity!!.packageName,
-                "nPages", "0", this.activity!!.applicationContext)!!)
-        if (nPages == 0) {
-            //Si el número de páginas no está en las SharedPreferences (primera vez que se abre la app
-            //lo inicializamos a 1
-            Helper.putInSharedPreferences(this.activity!!.packageName, "nPages", "1", this.activity!!.applicationContext)
-            nPages = 1
-        }
         pagerAdapter = if (tag.equals(SMALL_MAIN_FRAGMENT_TAG)) {
-            ScreenSlidePagerAdapter(childFragmentManager, isSmall, nPages + 1)
+            ScreenSlidePagerAdapter(childFragmentManager, fragmentClassification, (viewModel.nPages.value  ?: 1) + 1)
         } else {
-            ScreenSlidePagerAdapter(childFragmentManager, isSmall, nPages)
+            ScreenSlidePagerAdapter(childFragmentManager, fragmentClassification, viewModel.nPages.value ?: 1)
         }
         val pager = view.findViewById<ViewPager>(R.id.pager)
-        pager.offscreenPageLimit = nPages //Necesitamos que estén todas las páginas cargadas en memoria o el drag no funcionará bien cuando arrastremos fuera del offscreenLimit
+        pager.offscreenPageLimit = viewModel.nPages.value ?: 1 //Necesitamos que estén todas las páginas cargadas en memoria o el drag no funcionará bien cuando arrastremos fuera del offscreenLimit
         pager.adapter = pagerAdapter
         pagerContainer = view.findViewById(R.id.pager_container)
 
@@ -142,13 +135,6 @@ class MainFragment : Fragment(), ViewPager.OnPageChangeListener {
             )
             rightChangeListenerLayout.setOnDragListener { v, dragEvent -> customOnDragListener(v, dragEvent) }
             leftChangeListenerLayout.setOnDragListener { v, dragEvent -> customOnDragListener(v, dragEvent) }
-            if (viewModel.page == 0) {
-                setChangerAnimator(rightChangeListenerLayout, leftChangeListenerLayout, 2f, -resources.getDimension(R.dimen.changer_width))
-                onEdgeAnimationsEnabled = false
-            } else if (viewModel.page == nPages) {
-                setChangerAnimator(leftChangeListenerLayout, rightChangeListenerLayout, 2f, resources.getDimension(R.dimen.changer_width))
-                onEdgeAnimationsEnabled = false
-            }
         }
 
         //Si se trata del mod ajustes cambiamos el padding, margin para que se vean varias páginas
@@ -168,6 +154,7 @@ class MainFragment : Fragment(), ViewPager.OnPageChangeListener {
         pager.addOnPageChangeListener(this)
         pager.currentItem = viewModel.page
 
+        viewModel.nPages.observe(this, nPagesObserver)
 
         return view
     }
@@ -181,6 +168,34 @@ class MainFragment : Fragment(), ViewPager.OnPageChangeListener {
         }
     }
 
+
+    private val nPagesObserver = Observer<Int>{
+        var actualPages = if(tag == SMALL_MAIN_FRAGMENT_TAG){
+            pagerAdapter.count - 1
+        }
+        else{
+            pagerAdapter.count
+        }
+
+        if(it > actualPages) {
+            while(actualPages != it) {
+                pagerAdapter.addNewItem()
+                actualPages++
+            }
+            pager.offscreenPageLimit = it
+        }
+        else if(it < actualPages){
+            while(actualPages != it){
+                pagerAdapter.deleteItem()
+                actualPages--
+            }
+            pager.offscreenPageLimit = it
+            if(viewModel.page == actualPages){
+                viewModel.page--
+            }
+        }
+    }
+
     /**
      * Cuando el fragmento se muestra despues de estar escondido, es necesario hacer varias tareas
      * de actualización. Desde añadir páginas al adaptador, a moverse a una página en la que debería
@@ -189,24 +204,7 @@ class MainFragment : Fragment(), ViewPager.OnPageChangeListener {
     override fun onHiddenChanged(hidden: Boolean) {
         super.onHiddenChanged(hidden)
         if (!hidden) {
-            //Si se ha modificado el número de páginas (se ha añadido o quitado alguna) mientras el
-            //fragmento estaba escondido y no se corresponde con el valor guardado, añadimos o
-            //o quitamos una página
-            val newNPages = Integer.parseInt(Helper.getFromSharedPreferences(this.activity!!.packageName,
-                    "nPages", "0", this.activity!!.applicationContext)!!)
-            Log.d(this.toString(), "OldPages: $nPages   newPages: $newNPages")
-            if (nPages > newNPages) {
-                pagerAdapter.deleteItem()
-                Log.d(this.toString(), "Page Deleted")
-                view!!.invalidate()
-                nPages = newNPages
-                pager.offscreenPageLimit = nPages
-            } else if (nPages < newNPages) {
-                pagerAdapter.addNewItem()
-                Log.d(this.toString(), "Page Added")
-                nPages = newNPages
-                pager.offscreenPageLimit = nPages
-            }
+            view!!.isClickable = true
             if (tag == SMALL_MAIN_FRAGMENT_TAG) {
                 //Si el fragmento está en uno de los extremos tenemos que animar lso changers como sea
                 //necesario. Si no puede avanzar hacia uno de los lados escondemos ese changer y
@@ -221,9 +219,19 @@ class MainFragment : Fragment(), ViewPager.OnPageChangeListener {
                 else{
                     onEdgeAnimationsEnabled = true
                 }
+                tab_layout.invalidate()
+
             }
             //Nos movemos a la página correspondiente
             pager.setCurrentItem(viewModel.page, false)
+        }
+        else{
+            if(view != null){
+                view!!.isClickable = false
+            }
+            else{
+                onEdgeAnimationsEnabled = true
+            }
         }
     }
 
@@ -244,11 +252,8 @@ class MainFragment : Fragment(), ViewPager.OnPageChangeListener {
      * Cuando se cambia de página actualizamos el valor guardado en el viewModel
      */
     override fun onPageSelected(position: Int) {
-        if(position >viewModel.page-2 && position < viewModel.page+2){
             viewModel.page = position
-        }
     }
-
 
     private fun customOnDragListener(v: View, event: DragEvent): Boolean {
 
@@ -307,7 +312,7 @@ class MainFragment : Fragment(), ViewPager.OnPageChangeListener {
             DragEvent.ACTION_DROP -> {
                 threadInterrupted = true
                 Thread{
-                    Repository.newInstance(context!!.applicationContext)!!.revertLastDrag()
+                    Repository.getInstance(context!!.applicationContext)!!.revertLastDrag()
                 }
                 launchExitAnimations(v)
                 Toast.makeText(context, "Has soltado el icono en una zona no válida", Toast.LENGTH_LONG).show()
@@ -321,11 +326,12 @@ class MainFragment : Fragment(), ViewPager.OnPageChangeListener {
             //posición de los mismos estará descoordinada.
             DragEvent.ACTION_DRAG_ENDED -> {
                 threadInterrupted = true
-                if (viewModel.page == nPages) {
+                if (viewModel.page == pagerAdapter.count-1) {
                     setChangerAnimator(leftChangeListenerLayout, rightChangeListenerLayout, 1f, 0f)
                 } else if (viewModel.page == 0) {
                     setChangerAnimator(rightChangeListenerLayout, leftChangeListenerLayout, 1f, 0f)
                 }
+                onEdgeAnimationsEnabled = true
             }
 
         }
@@ -381,19 +387,18 @@ class MainFragment : Fragment(), ViewPager.OnPageChangeListener {
      */
     private fun setChangerAnimator(scaledView: View, movedView: View, scale: Float, translation: Float) {
         //Agrandamos o reducimos uno de los changers
-        val scaledAnimator = if (scale == 0.5f) {
-            ObjectAnimator.ofFloat(scaledView, "translationX", translation)
-        } else {
-            ObjectAnimator.ofFloat(scaledView, "scaleX", scale)
-        }
+        val scaledAnimator = ObjectAnimator.ofFloat(scaledView, "scaleX", scale)
         val pagerAnimator = ObjectAnimator.ofFloat(pagerContainer, "translationX", translation)
         val movedAnimator = ObjectAnimator.ofFloat(movedView, "translationX", translation) //Movemos el otro changer y el pager
+
         scaledAnimator.duration = CHANGER_ANIMATION_DURATION
         pagerAnimator.duration = CHANGER_ANIMATION_DURATION
         movedAnimator.duration = CHANGER_ANIMATION_DURATION
+
         scaledAnimator.interpolator = AccelerateInterpolator()
         pagerAnimator.interpolator = AccelerateInterpolator()
         movedAnimator.interpolator = AccelerateInterpolator()
+
         val animator = AnimatorSet()
         animator.playTogether(scaledAnimator, pagerAnimator, movedAnimator)
         animator.start()
@@ -429,10 +434,10 @@ class MainFragment : Fragment(), ViewPager.OnPageChangeListener {
         fun newInstance(iconWidth: Int, iconHeight: Int, numberOfColumns: Int, numberOfRows: Int) =
                 MainFragment().apply {
                     arguments = Bundle().apply {
-                        putInt(ARG_PARAM1, iconWidth)
-                        putInt(ARG_PARAM2, iconHeight)
-                        putInt(ARG_PARAM3, numberOfColumns)
-                        putInt(ARG_PARAM4, numberOfRows)
+                        putInt(ARG_ICON_WIDTH, iconWidth)
+                        putInt(ARG_ICON_HEIGHT, iconHeight)
+                        putInt(ARG_NUMBER_OF_COLUMNS, numberOfColumns)
+                        putInt(ARG_NUMBER_OF_ROWS, numberOfRows)
                     }
                 }
     }

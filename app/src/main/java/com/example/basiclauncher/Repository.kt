@@ -1,112 +1,68 @@
 package com.example.basiclauncher
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.SharedPreferences
 import android.util.Log
 import android.util.SparseArray
 import androidx.core.util.containsKey
+import androidx.core.util.valueIterator
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
+import androidx.preference.PreferenceManager
 import com.example.basiclauncher.classes.AppIcon
 import com.example.basiclauncher.classes.CustomLinearLayoutState
 import com.example.basiclauncher.room.AbstractAppDatabase
 import java.lang.ref.WeakReference
 import java.util.*
 
+const val NUMBER_OF_PAGES_KEY: String = "nPages"
 /**
  * Clase Singleton que se utiliza para acceder a la Base de Datos e interactuar con Room.
  */
-class Repository private constructor(ctx: Context) {
-    private var context: WeakReference<Context> = WeakReference(ctx)
+class Repository private constructor(private val context: Context) {
     private var appList: LiveData<Array<AppIcon>> = MutableLiveData()
     private var appSparseArrayLiveData: MutableLiveData<SparseArray<AppIcon>> = MutableLiveData()
     //Mapea livedata de los estados de las celdas de cada página según la página.
     private var stateListMap = SparseArray<LiveData<Array<CustomLinearLayoutState>>>()
-    private val myDao = AbstractAppDatabase.getInstance(context.get()!!)?.myDao()
-    private val stateDao = AbstractAppDatabase.getInstance(context.get()!!)?.stateDao()
-    private var nPages = 0
+    private val myDao = AbstractAppDatabase.getInstance(context)?.myDao()
+    private val stateDao = AbstractAppDatabase.getInstance(context)?.stateDao()
     //Guarda el último estado que se ha eliminado por si hay que revertirlo.
     private var lastDeletedItem: CustomLinearLayoutState? = null
     //Si hay que borrar una página y reestructurar las páginas se guarda el número de la página
     //que se va a borrar.
     private var pageDeleted:Int = -1
-
-    //Hilo que actualiza la lista de aplicaciones del sistema cuando se instala o desinstala alguna
-    private val getAppDrawerListThread = Runnable {
-        val mainIntent = Intent(Intent.ACTION_MAIN, null)
-        mainIntent.addCategory(Intent.CATEGORY_LAUNCHER)
-
-        //Obtenemos los packageNames de todas las aplicaciones a partir de sus activities Launcher
-        val apps = context.get()!!.packageManager.queryIntentActivities(mainIntent, 0)
-        val packageNamesList = ArrayList<String>()
-        for (i in apps) {
-            if(!packageNamesList.contains(i.activityInfo.packageName)) {
-                packageNamesList.add(i.activityInfo.packageName)
-            }
-        }
-
-        //Se comparan los datos guardados con los datos obtenidso ahora. A los datos obtenidos se le
-        //resta un paquete. Esto es porque no se guarda el paquete propio
-        if (apps.size - 1 < appList.value!!.size) {
-            //Si el número de apps guardadas es mayor que los obtenidos ahora, se sabe que se ha
-            //desinstalado una aplicación. Se busca cual ha sido y se actualiza la BBDD
-            for (i in appList.value!!) {
-                if (!packageNamesList.contains(i.packageName)) {
-                    Thread { myDao!!.deleteApp(myDao.getAppById(i.id)) }.start()
-                    appSparseArrayLiveData.postValue(
-                            appSparseArrayLiveData.value!!.apply {
-                                this.delete(i.id)
-                            }
-                    )
-                    if (nPages > 1) {
-                        //Comprobamos si había accesos directos de esta aplicación que se hayan
-                        //borrado al desinstalarla que hayan dejado páginas vacías con necesidad de
-                        //recolocación.
-                        for (j in 1 until nPages) {
-                            comprobeIfPageIsDeletable(j)
-                        }
-                    }
-                }
-            }
-        } else if (apps.size - 1 > appList.value!!.size) {
-            //En este caso sabemos que se ha instalad una aplicación. Buscamos cual es la nueva,
-            //la añadimos y actualizamos la BBDD
-            var packageNameFound: Boolean
-            for (i in packageNamesList) {
-                packageNameFound = false
-                if (i == context.get()!!.packageName) {
-                    //No tenemos en cuenta la app propia
-                    continue
-                }
-                for (j in appList.value!!) {
-                    if (j.packageName == i) {
-                        packageNameFound = true
-                        break
-                    }
-                }
-                if (!packageNameFound) {
-                    Thread {
-                        myDao!!.insertApp(AppIcon(
-                                i,
-                                Helper.getAppName(context.get()!!, i),
-                                Helper.getActivityIcon(context.get()!!, i)
-                        ))
-                    }.start()
-                    break
-                }
-
-            }
-
-        }
-
-    }
+    val nPagesLiveData = MutableLiveData<Int>()
+    private var sharedPref : SharedPreferences = PreferenceManager.getDefaultSharedPreferences(context)
 
     /**
      * Lanza el hilo de actualización de la lista de aplicaciones
      */
-    fun updateAppList() {
-        getAppDrawerListThread.run()
+    fun updateAppList(intent: Intent?) {
+        Thread {
+            val packageName = intent!!.data.toString()
+            if (intent.action == Intent.ACTION_PACKAGE_ADDED) {
+                myDao!!.insertApp(AppIcon(
+                        packageName,
+                        Helper.getAppName(context, packageName),
+                        Helper.getActivityIcon(context, packageName)
+                ))
+            }
+            else {
+                myDao!!.deleteApp(findAppByPackageName(packageName)!!)
+                if (nPagesLiveData.value!! > 1) {
+                    //Comprobamos si había accesos directos de esta aplicación que se hayan
+                    //borrado al desinstalarla que hayan dejado páginas vacías con necesidad de
+                    //recolocación.
+                    for (j in 1 until nPagesLiveData.value!!) {
+                        comprobeIfPageIsDeletable(j)
+                        reallocatePages(pageDeleted, nPagesLiveData.value!!)
+                    }
+                }
+            }
+        }.start()
     }
 
     /**
@@ -125,14 +81,16 @@ class Repository private constructor(ctx: Context) {
 
 
     init {
+        var nPages = sharedPref.getInt(NUMBER_OF_PAGES_KEY, 0)
+        if(nPages == 0){
+            sharedPref.edit().putInt(NUMBER_OF_PAGES_KEY, 1).apply()
+            nPages = 1
+        }
+        nPagesLiveData.postValue(nPages)
+
         //Inicializamos los arrays y mapas
         appSparseArrayLiveData.value = SparseArray()
         appList = myDao!!.getAppList()
-        nPages = Helper.getFromSharedPreferences(context.get()!!.packageName,
-                "nPages", "0", context.get()!!.applicationContext)!!.toInt()
-        if (nPages == 0) {
-            nPages = 1
-        }
 
         //Observamos un livedata de un array "raw" que viene directo de la BBDD. Cuando se actualiza,
         //actualizamos un mapa que nos permite trabajar de una manera mucho mas facil con las
@@ -157,7 +115,7 @@ class Repository private constructor(ctx: Context) {
         intentFilter.addAction(Intent.ACTION_PACKAGE_ADDED)
         intentFilter.addAction(Intent.ACTION_PACKAGE_REMOVED)
         intentFilter.addDataScheme("package")
-        context.get()!!.registerReceiver(installEventBroadcastReceiver, intentFilter)
+        context.registerReceiver(installEventBroadcastReceiver, intentFilter)
     }
 
     /**
@@ -168,33 +126,33 @@ class Repository private constructor(ctx: Context) {
      * @param position: Posición de la celda en cuestión.
      */
     fun stateOccupied(packageName: String, page: Int, position: Int) {
-        var effectivePage = page
-        if(pageDeleted != -1 && pageDeleted != page) {
-            if(page>pageDeleted){
-                //Si se va a proceder a recolocar páginas, y la página en la que se ha droppeado este
-                //icono está a la derecha de la borrada, entonces este icono pasa a la página anterior
-                //y se procede a la recolocación del resto
-                effectivePage--
-            }
-            //Al colocar un nuevo icono es cuando se procede al borrado de las páginas y recolocación
-            //de las que fueran necesarias.
-            Thread{
-                reallocatePages(pageDeleted, nPages)
-            }.start()
+        Thread{
+            var effectivePage = page
+            if(pageDeleted != -1 && pageDeleted != page) {
+                if(page>pageDeleted){
+                    //Si se va a proceder a recolocar páginas, y la página en la que se ha droppeado este
+                    //icono está a la derecha de la borrada, entonces este icono pasa a la página anterior
+                    //y se procede a la recolocación del resto
+                    effectivePage--
+                }
+                //Al colocar un nuevo icono es cuando se procede al borrado de las páginas y recolocación
+                //de las que fueran necesarias.
+                Thread{
+                    reallocatePages(pageDeleted, nPagesLiveData.value!!)
+                }.start()
 
-            if(page == nPages){
-                //Si la página en la que se ha droppeado el icono es la página nueva, se procede a
-                //a añadirla definitivamente, si no, se borra.
-                nPages++
-                Helper.putInSharedPreferences(context.get()!!.packageName,
-                        "nPages", nPages.toString(), context.get()!!.applicationContext)
+                if(page == nPagesLiveData.value!!){
+                    //Si la página en la que se ha droppeado el icono es la página nueva, se procede a
+                    //a añadirla definitivamente.
+                    updateNumberOfPages(nPagesLiveData.value!!+1)
+                }
             }
-        }
 
-        stateDao!!.insertState(CustomLinearLayoutState(
-                effectivePage,
-                position,
-                findAppByPackageName(packageName)!!.id))
+            stateDao!!.insertState(CustomLinearLayoutState(
+                    effectivePage,
+                    position,
+                    findAppByPackageName(packageName)!!.id))
+        }.start()
     }
 
     /**
@@ -204,25 +162,29 @@ class Repository private constructor(ctx: Context) {
      * @param position: Posición de dicha celda.
      */
     fun deleteItem(page: Int, position: Int) {
-        for (i in stateListMap[page].value!!) {
-            if (i.position == position) {
-                //Guardamos una instancia del item borrado por si hay que revertir la operación
-                lastDeletedItem = i
+        Thread{
+            for (i in stateListMap[page].value!!) {
+                if (i.position == position) {
+                    //Guardamos una instancia del item borrado por si hay que revertir la operación
+                    lastDeletedItem = i
+                }
             }
-        }
 
-        stateDao!!.deleteState(CustomLinearLayoutState(page, position))
-        //Después de borrar el item comprobamos si la página se queda vacía y se puede proceder
-        //a borrarla
-        comprobeIfPageIsDeletable(page)
+            stateDao!!.deleteState(CustomLinearLayoutState(page, position))
+            //Después de borrar el item comprobamos si la página se queda vacía y se puede proceder
+            //a borrarla
+            comprobeIfPageIsDeletable(page)
+        }.start()
     }
 
     /**
      * Revierte el último item borrado.
      */
     fun revertLastDrag() {
-        pageDeleted = -1
-        stateDao!!.insertState(lastDeletedItem!!)
+        Thread{
+            pageDeleted = -1
+            stateDao!!.insertState(lastDeletedItem!!)
+        }.start()
     }
 
     /**
@@ -231,8 +193,6 @@ class Repository private constructor(ctx: Context) {
      * @param page: Página en cuestión.
      */
     private fun comprobeIfPageIsDeletable(page: Int) {
-        nPages = Helper.getFromSharedPreferences(context.get()!!.packageName,
-                "nPages", "0", context.get()!!.applicationContext)!!.toInt()
         //Comprobamos que:
         //la página en cuestión no sea la 0 (esa no se puede borrar)
         //no haya estados de la página en cuestión.
@@ -242,13 +202,11 @@ class Repository private constructor(ctx: Context) {
                 &&
                 (stateListMap.get(page).value == null || stateListMap.get(page).value!!.size == 1)
                 &&
-                page <= nPages) {
-            if (page == nPages-1) {
+                page <= nPagesLiveData.value!!) {
+            if (page == nPagesLiveData.value!!-1) {
                 //Si la página que se ha quedado vacía es la última, no añadimos una nueva página
                 //para el drag.
-                nPages--
-                Helper.putInSharedPreferences(context.get()!!.packageName,
-                        "nPages", nPages.toString(), context.get()!!.applicationContext)
+                updateNumberOfPages(nPagesLiveData.value!! - 1)
             }
 
             //Guardamos la página que puede ser borrada. Se comprobará de nuevo una vez que se haga
@@ -267,9 +225,7 @@ class Repository private constructor(ctx: Context) {
     private fun reallocatePages(page: Int, npages: Int) {
         if(page!=npages) {
             //Se borra la página.
-            nPages--
-            Helper.putInSharedPreferences(context.get()!!.packageName,
-                    "nPages", nPages.toString(), context.get()!!.applicationContext)
+            updateNumberOfPages(nPagesLiveData.value!! - 1)
         }
 
         for (i in page until npages) {
@@ -296,6 +252,8 @@ class Repository private constructor(ctx: Context) {
      */
     fun getAppList(): LiveData<SparseArray<AppIcon>> = appSparseArrayLiveData
 
+    fun getAppListOrderedByAppName(): LiveData<Array<AppIcon>> = appList
+
     /**
      * @param page: Página cuyo mapa de estados queremos recuperar
      *
@@ -314,18 +272,34 @@ class Repository private constructor(ctx: Context) {
      */
     fun updateIfNecessary(){
         if(pageDeleted!=-1){
-            reallocatePages(pageDeleted, nPages)
+            reallocatePages(pageDeleted, nPagesLiveData.value!!)
         }
     }
 
     fun clean() {
-        context.clear()
         instance = null
     }
 
+    fun updateNumberOfPages(nPages: Int){
+        sharedPref.edit().putInt(NUMBER_OF_PAGES_KEY, nPages).apply()
+        nPagesLiveData.postValue(nPages)
+    }
+
+    fun getIconsPerRow(): Int{
+        val iconsPerRow = sharedPref.getInt(context.resources.getString(R.string.icon_size) , 0)
+        if(iconsPerRow == 0){
+            sharedPref.edit().putInt(context.resources.getString(R.string.icon_size), 4).apply()
+            return 4
+        }
+        return iconsPerRow
+    }
+
+
     companion object {
+        //El context que se le pasa es el applicationContext, por eso no hay fugas en este caso
+        @SuppressLint("StaticFieldLeak")
         private var instance: Repository? = null
-        fun newInstance(ctx: Context): Repository? {
+        fun getInstance(ctx: Context): Repository? {
             if (instance == null) {
                 instance = Repository(ctx)
             }

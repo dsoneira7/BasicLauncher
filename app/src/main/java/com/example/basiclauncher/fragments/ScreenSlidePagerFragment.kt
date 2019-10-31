@@ -13,18 +13,22 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProviders
 import com.example.basiclauncher.*
+import com.example.basiclauncher.activities.ON_GRID_CLICK_FROM_SMALLER_MODE
 import com.example.basiclauncher.adapters.IS_NORMAL
 import com.example.basiclauncher.adapters.IS_SMALL
 import com.example.basiclauncher.adapters.IS_SMALLER
+import com.example.basiclauncher.classes.CustomLinearLayout
 import com.example.basiclauncher.classes.CustomLinearLayoutState
 import com.example.basiclauncher.viewmodels.MainFragmentViewModel
 import com.example.basiclauncher.viewmodels.ScreenSlidePagerViewModel
-import com.example.basiclauncher.viewmodels.ScreenSlidePagerViewModelFactory
+import com.example.basiclauncher.viewmodels.factories.ScreenSlidePagerViewModelFactory
 import kotlinx.android.synthetic.main.viewpagerfragment.*
 
 const val LONG_HOLD_VALUE: Long = 700
 const val CELL_NOT_FOUND: String = "Cell not found."
 
+private const val ARG_PAGE = "position"
+private const val ARG_IS_SMALL_FRAGMENT = "isSmallFragment"
 /**
  * Subclase de [Fragment] que se corresponde con cada una de las páginas del [ViewPager].
  * Contiene una GridLayout que guarda la posición de nuestros iconos guardados.
@@ -33,7 +37,14 @@ const val CELL_NOT_FOUND: String = "Cell not found."
 class ScreenSlidePagerFragment : Fragment() {
 
     companion object {
-        fun newInstance() = ScreenSlidePagerFragment()
+        fun newInstance(position: Int, isSmallFragment: Int) : ScreenSlidePagerFragment{
+            val bundle = Bundle()
+            bundle.putInt(ARG_PAGE, position)
+            bundle.putInt(ARG_IS_SMALL_FRAGMENT, isSmallFragment)
+            val fragment = ScreenSlidePagerFragment()
+            fragment.arguments = bundle
+            return fragment
+        }
     }
 
     private lateinit var onIconAttachedListener: (Int) -> Unit
@@ -90,9 +101,8 @@ class ScreenSlidePagerFragment : Fragment() {
         //Nunca va a haber un cambio en los iconos cuando el fragmento es pequeño (ajustes), por
         //lo que no es necesario observar los cambios. En los otros casos si es necesario, también
         //porque son fragmentos que están siempre activos y necesitan actualizarse con los cambios
-        if (isSmallFragment != IS_SMALLER) {
             viewModel.stateList.observe(this, observer)
-        }
+
 
         //Si el fragmento es grande, el fondo es transparente, por el contrario, si no lo es,
         //ponemos un filtro grisáceo translúcido.
@@ -179,27 +189,6 @@ class ScreenSlidePagerFragment : Fragment() {
      * necesarias y pintando los iconos si hay datos guardados al respecto
      */
     private fun gridConfiguration() {
-        val arrayOfStates = arrayOfNulls<CustomLinearLayoutState>(numberOfIcons)
-        //Metemos todos los CustomLinearLayoutStates guardados en un array que nos permite interactuar
-        //de una manera mas intuitiva y fácil con ellos.
-
-        if (viewModel.stateList.value != null) {
-            for (i in viewModel.stateList.value!!) {
-                //Si se ha hehco un cambio de tamaño del grid,
-                //de más grande a más pequeño, y hay iconos que se quedan fuera del grid, se borran de la BBDD
-                if (i.position >= arrayOfStates.size) {
-                    Thread {
-                        viewModel.emptyState(i.page, i.position)
-                    }.start()
-                } else {
-                    //El array creado contiene nulos en las posiciones donde no hay nada.
-                    arrayOfStates[i.position] = i
-                }
-            }
-        }
-
-        //Ahora podemos interactuar secuencialmente con cada una de las celdas, teniendo un state
-        //correspondiente a cada una de las iteraciones. numberOfIcons es producto de iconsPerRow*iconsPerColumn
         for (i in 0 until numberOfIcons) {
             //Instanciamos la celda. Si el fragmento no es grande, la celda no necesita
             //implementar longHoldListeners ni los mismos OnClickListeners.
@@ -211,18 +200,13 @@ class ScreenSlidePagerFragment : Fragment() {
             //Callbacks para interactuar con los fragmentos contenedores según sea necseario
             //El primero se utiliza para actualizar la BBDD, y el segundo para varias operaciones,
             //como avisar de un LongClick o de un drop en la celda en cuestión.
-            linearLayout.attachListeners({ p1, p2, p3 -> onIconAttached(p1, p2, p3) },
+            linearLayout.attachListeners({ packageName, page, position -> onIconAttached(packageName, page, position) },
                     { onPostIconAttached(it) })
 
             linearLayout.id = (page + 1) * (i + 1) //Asignamos un ID arbitrario para identificarla después
 
             linearLayout.layoutParams = LinearLayout.LayoutParams(iconWidth, iconHeight)
 
-            //Si el state correspondiente no es nulo y tiene una app asignada, setteamos esta celda.
-            if (arrayOfStates[i] != null && arrayOfStates[i]!!.appId != -1) {
-                //La info sobre la appIcon se guarda en el viewmodel.
-                linearLayout.setApp(viewModel.appList.value!!.get(arrayOfStates[i]!!.appId))
-            }
 
             //Añadimos la celda.
             gridlayout.addView(linearLayout)
@@ -240,17 +224,8 @@ class ScreenSlidePagerFragment : Fragment() {
         }
         //Por el contrario si packageName no está vacío, significa que se ha hecho un drop y interac-
         //tuamos con el viewmodel para actualizar la BBDD
-        Thread {
-            mainFragmentViewModel.page = page
-            viewModel.stateOccupied(packageName, page, position)
-        }.start()
-        //Si además el drop se ha hehco en una página nueva actualizamos el valor del número de paginas
-        //de las sharedPreferences.
-        if ((page + 1) > Helper.getFromSharedPreferences(this.activity!!.packageName,
-                        "nPages", "0", this.activity!!.applicationContext)!!.toInt()) {
-            Helper.putInSharedPreferences(this.activity!!.packageName,
-                    "nPages", (page + 1).toString(), this.activity!!.applicationContext)
-        }
+        mainFragmentViewModel.page = page
+        viewModel.stateOccupied(packageName, page, position)
     }
 
     /**

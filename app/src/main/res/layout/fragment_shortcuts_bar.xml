@@ -7,13 +7,13 @@
     tools:context=".fragments.ShortcutsBarFragment"
     android:id="@+id/frame_layout_shortcuts_bar">
 
-    <FrameLayout
+    <com.example.basiclauncher.classes.CustomLinearLayout
         android:layout_width="0dp"
         android:layout_height="match_parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toStartOf="@id/container_shortcut_2"
         android:id="@+id/container_shortcut_1"/>
-    <FrameLayout
+    <com.example.basiclauncher.classes.CustomLinearLayout
         android:id="@+id/container_shortcut_2"
         android:layout_width="0dp"
         android:layout_height="match_parent"
@@ -25,14 +25,15 @@
         android:layout_width="0dp"
         android:layout_height="match_parent"
         app:layout_constraintEnd_toStartOf="@id/container_shortcut_3"
-        app:layout_constraintStart_toEndOf="@id/container_shortcut_2"/>
-    <FrameLayout
+        app:layout_constraintStart_toEndOf="@id/container_shortcut_2"
+        tools:ignore="ContentDescription" />
+    <com.example.basiclauncher.classes.CustomLinearLayout
         android:id="@+id/container_shortcut_3"
         android:layout_width="0dp"
         android:layout_height="match_parent"
         app:layout_constraintEnd_toStartOf="@id/container_shortcut_4"
         app:layout_constraintStart_toEndOf="@id/arrow_icon"/>
-    <FrameLayout
+    <com.example.basiclauncher.classes.CustomLinearLayout
         android:id="@+id/container_shortcut_4"
         android:layout_width="0dp"
         android:layout_height="match_parent"

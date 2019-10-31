@@ -7,6 +7,7 @@ import android.content.Intent
 import android.graphics.drawable.BitmapDrawable
 import android.os.Build
 import android.util.Log
+import android.util.SparseArray
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -30,35 +31,18 @@ import kotlin.Comparator
  */
 class AppDrawerAdapter(
         private val mContext: Context,
-        var data: ArrayList<AppIcon>,
+        var data: Array<AppIcon>,
         var onHoldListener: () -> Unit
 ) : BaseAdapter() {
 
     //Comparator utilizado para ordenar por orden alfabético según el nombre que se vaya a mostrar.
     //Prioritariamente se muestra el label de la aplicación, pero algunas no tienen.
-    private val comparator = Comparator<AppIcon> { a, b ->
-        val aNameToCompare: String = if (a.appName == "") {
-            a.packageName
-        } else {
-            a.appName
-        }
-        val bNameToCompare: String = if (b.appName == "") {
-            b.packageName
-        } else {
-            b.appName
-        }
-        aNameToCompare.compareTo(bNameToCompare, true)
-    }
-
-    init {
-        Collections.sort(data, comparator)
-    }
 
     override fun getView(position: Int, view: View?, parent: ViewGroup?): View {
         var view2 = view
         if (view2 == null) {
             val inflater = mContext.getSystemService(Context.LAYOUT_INFLATER_SERVICE) as LayoutInflater
-            view2 = inflater.inflate(R.layout.item, null)
+            view2 = inflater.inflate(R.layout.item, parent, false)
         }
 
         //Setteamos icono y nombre

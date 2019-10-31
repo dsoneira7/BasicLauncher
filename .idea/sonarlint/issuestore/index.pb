@@ -57,3 +57,7 @@ P
  app/src/main/AndroidManifest.xml,8\c\8c55c3ccc257e5907959013f99656e4c8ec3903e
 Å
 Qapp/src/main/java/com/example/basiclauncher/fragments/SettingsActivityFragment.kt,f\e\fe6cb81bcb0dd0a7e1231771fe9cae3f8a1287bf
+é
+^app/build/tmp/kapt3/stubs/debug/com/example/basiclauncher/classes/CustomLinearLayoutState.java,7\4\746192a8464a603ed0ef86788f31fbde59e6540c
+
+Oapp/src/main/java/com/example/basiclauncher/viewmodels/MainActivityViewModel.kt,9\5\95a745c1ba5bb0ba7078d66e2e1f6ab1d6562bb9

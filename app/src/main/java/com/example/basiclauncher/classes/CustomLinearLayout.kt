@@ -1,4 +1,4 @@
-package com.example.basiclauncher
+package com.example.basiclauncher.classes
 
 import android.animation.ArgbEvaluator
 import android.animation.ValueAnimator
@@ -9,8 +9,7 @@ import android.content.Intent
 import android.graphics.Color
 import android.graphics.drawable.BitmapDrawable
 import android.os.Build
-import android.text.InputFilter
-import android.text.TextUtils
+import android.util.AttributeSet
 import android.util.Log
 import android.view.DragEvent
 import android.view.Gravity
@@ -23,20 +22,32 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.ContextCompat.startActivity
 import androidx.core.view.contains
 import androidx.core.widget.TextViewCompat
-import com.example.basiclauncher.classes.AppIcon
+import com.example.basiclauncher.R
+import com.example.basiclauncher.activities.ON_EMPTY_CLICK
+import com.example.basiclauncher.activities.ON_GRID_CLICK_FROM_SMALLER_MODE
+import com.example.basiclauncher.activities.ON_ICON_ATTACHED
+import com.example.basiclauncher.activities.ON_MAIN_MENU_HOLD
 import com.example.basiclauncher.viewmodels.MainFragmentViewModel
 
 /**
  * Subclase de [LinearLayout] que se corresponde con cada una de las celdas que va a contener el
  * launcher.
  */
-class CustomLinearLayout(private val mContext: Context?) : LinearLayout(mContext), View.OnDragListener {
+class CustomLinearLayout : LinearLayout, View.OnDragListener {
 
     //Es necesario asignarle un valor en caso de que se utilice el constructor principal
     private var page: Int = -2
     private var position: Int = -2
     private var viewModel: MainFragmentViewModel? = null
     private var isNormalFragment: Boolean = false
+
+    constructor (mContext: Context?): super(mContext)
+
+    constructor (mContext: Context?, attrs: AttributeSet): super(mContext, attrs)
+
+    constructor (mContext: Context?, attrs: AttributeSet, defStyleAttr: Int): super(mContext, attrs, defStyleAttr)
+
+    constructor (mContext: Context?, attrs: AttributeSet, defStyleAttr: Int, defStyleRes: Int): super(mContext, attrs, defStyleAttr, defStyleRes)
 
     constructor(mContext: Context?, page: Int, position: Int) : this(mContext) {
         this.page = page
@@ -65,8 +76,8 @@ class CustomLinearLayout(private val mContext: Context?) : LinearLayout(mContext
         setOnLongClickListener { onLongClick(it) }
         setOnClickListener { onClick() }
         setOnDragListener(this)
-        colorFrom = ContextCompat.getColor(mContext!!, R.color.blackHighAlpha)
-        colorTo = ContextCompat.getColor(mContext, R.color.blackLowAlpha)
+        colorFrom = ContextCompat.getColor(context!!, R.color.blackHighAlpha)
+        colorTo = ContextCompat.getColor(context, R.color.blackLowAlpha)
         this.orientation = VERTICAL
     }
 
@@ -111,7 +122,7 @@ class CustomLinearLayout(private val mContext: Context?) : LinearLayout(mContext
             }
         } else {
             //Si la celda no se ha actualizado ajustamos los parámetros encesariso para su correcto funcioamiento
-            appName = AppCompatTextView(mContext)
+            appName = AppCompatTextView(context)
             appName?.layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT, 3.5f)
 
             //Autosize uniforme automático del textview
@@ -120,7 +131,7 @@ class CustomLinearLayout(private val mContext: Context?) : LinearLayout(mContext
             } else {
                 TextViewCompat.setAutoSizeTextTypeUniformWithConfiguration(appName!!, 2, 100, 2, TextViewCompat.AUTO_SIZE_TEXT_TYPE_UNIFORM)
             }
-            icon = ImageView(mContext)
+            icon = ImageView(context)
             icon?.tag = app.packageName
             icon?.layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT, 1.2f)
             val drawable = BitmapDrawable(context.resources, app.icon)
@@ -153,11 +164,10 @@ class CustomLinearLayout(private val mContext: Context?) : LinearLayout(mContext
                 //Si se hace un drop en una celda desempaquetamos la información
                 val item = event.clipData.getItemAt(0)
                 val dragData = item.text as String
-                val packageName = dragData.substringBefore(";")
                 post {
                     //Esta llamada hace que el fragmento contenedor le indique al repositorio que es
                     //lo que tiene que meter en la BBDD
-                    iconOperationListener(packageName, page, position)
+                    iconOperationListener(dragData, page, position)
                 }
                 post {
                     //Esta llamada va destinada a advertir que se está preparado para el cambio
@@ -173,6 +183,11 @@ class CustomLinearLayout(private val mContext: Context?) : LinearLayout(mContext
 
     }
 
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        setMeasuredDimension(width, width)
+        super.onMeasure(widthMeasureSpec, heightMeasureSpec)
+    }
+
     private fun onClick(): Boolean {
         if (!isNormalFragment) {
             //Si no estamos en modo normal (modo ajustes) un click en el grid nos lleva al mdoo normal
@@ -184,9 +199,9 @@ class CustomLinearLayout(private val mContext: Context?) : LinearLayout(mContext
             return true
         }
         //Recreamos el intent de la aplicació en cuestión y lo lanzamos.
-        val launchIntent: Intent? = mContext!!.packageManager.getLaunchIntentForPackage(packageName)
+        val launchIntent: Intent? = context!!.packageManager.getLaunchIntentForPackage(packageName)
         if (launchIntent != null) {
-            startActivity(mContext, launchIntent, null)
+            startActivity(context, launchIntent, null)
         } else {
             Log.e("ERROR", "intent null")
         }
@@ -200,9 +215,9 @@ class CustomLinearLayout(private val mContext: Context?) : LinearLayout(mContext
         if (!empty) {
             //Si hacemos un long click, empaquetamos los datos de la app si la celda no está vacía
             //e iniciamos el drag
-            val item = ClipData.Item((packageName + ";" + page + ";" + position) as CharSequence)
+            val item = ClipData.Item((packageName) as CharSequence)
             val mimeTypes = arrayOf(ClipDescription.MIMETYPE_TEXT_PLAIN)
-            val dragData = ClipData(packageName + ";" + page + ";" + position, mimeTypes, item)
+            val dragData = ClipData(packageName, mimeTypes, item)
             Log.d("LinearLayout", "StartDrag $packageName $page $position")
             val shadow = DragShadowBuilder(icon)
             //Esta llamada indicará al fragmento contenedor que debe borrar esta app de la BBDD
@@ -255,4 +270,11 @@ class CustomLinearLayout(private val mContext: Context?) : LinearLayout(mContext
         }
         colorAnimation.start()
     }
+
+    fun setBasicParams(page:Int, position: Int, isNormalFragment : Boolean){
+        this.page = page
+        this.position = position
+        this.isNormalFragment = isNormalFragment
+    }
+
 }

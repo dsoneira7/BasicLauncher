@@ -1,0 +1,33 @@
+
+Psquid:S3400"9Remove this method and declare a constant for this value.(”·³›
+Esquid:S1172(")Remove this unused method parameter "p0".(¬Ô—ûÿÿÿÿ
+hsquid:S00103"KSplit this 244 characters long line (which is greater than 120 authorized).(ªŞ•ûÿÿÿÿ
+<squid:S2333"%"final" is redundant in this context.(…Í„õ
+Asquid:S2333("%"final" is redundant in this context.(¬Ô—ûÿÿÿÿ
+Psquid:S34000"9Remove this method and declare a constant for this value.(”·³›
+squid:S1186!"€Add a nested comment explaining why this method is empty, throw an UnsupportedOperationException or complete the implementation.(í‚ëÇûÿÿÿÿ
+esquid:S00103"MSplit this 1.672 characters long line (which is greater than 120 authorized).(¶¤»º
+<squid:S23337"%"final" is redundant in this context.(±’å
+Esquid:S1172!")Remove this unused method parameter "p0".(í‚ëÇûÿÿÿÿ
+Psquid:S3400%"9Remove this method and declare a constant for this value.(”·³›
+Psquid:S34004"9Remove this method and declare a constant for this value.(”·³›
+3squid:S2225S"Return empty string instead.(¥¹ï
+Bsquid:S1172+"&Remove these unused method parameters.(î€À©ùÿÿÿÿ
+Asquid:S2333"%"final" is redundant in this context.(‘°Êãşÿÿÿÿ
+squid:S1186("€Add a nested comment explaining why this method is empty, throw an UnsupportedOperationException or complete the implementation.(¬Ô—ûÿÿÿÿ
+Wsquid:S1213+";Move this constructor to comply with Java Code Conventions.(î€À©ùÿÿÿÿ
+Asquid:S2333/"%"final" is redundant in this context.(»œ”ôùÿÿÿÿ
+Esquid:S1172")Remove this unused method parameter "p0".(‘°Êãşÿÿÿÿ
+<squid:S2333"%"final" is redundant in this context.(æª«ò
+Psquid:S34008"9Remove this method and declare a constant for this value.(”·³›
+Asquid:S23333"%"final" is redundant in this context.(ç–õüÿÿÿÿ
+Esquid:S1068")Remove this unused "appId" private field.(¿ÄÖÕşÿÿÿÿ
+7squid:S00113"'Add a new line at the end of this file.
+Ysquid:S2973"BRemove this Unicode escape sequence and use the character instead.(¶¤»º
+<squid:S2333$"%"final" is redundant in this context.(¦«¨´
+\squid:S1942D"@Replace this fully qualified name with "CustomLinearLayoutState"(İÓ» şÿÿÿÿ
+zsquid:UselessImportCheck"QRemove this unnecessary import: java.lang classes are always implicitly imported.(Š»³ ùÿÿÿÿ
+Asquid:S2333!"%"final" is redundant in this context.(í‚ëÇûÿÿÿÿ
+Psquid:S3400"9Remove this method and declare a constant for this value.(”·³›
+squid:S1186"€Add a nested comment explaining why this method is empty, throw an UnsupportedOperationException or complete the implementation.(‘°Êãşÿÿÿÿ
+Asquid:S2333D"%"final" is redundant in this context.(İÓ» şÿÿÿÿ

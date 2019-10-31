@@ -72,7 +72,7 @@ object Helper {
      * @param context: Contexto de la aplicación
      * @param bitmap: Fondo de la aplicación en formato [Bitmap]
      */
-    fun setNewBackground(context: Context, bitmap: Bitmap) {
+    fun saveNewBackground(context: Context, bitmap: Bitmap) {
         val baos = ByteArrayOutputStream()
         bitmap.compress(Bitmap.CompressFormat.PNG, 100, baos)
         val bytes = baos.toByteArray()

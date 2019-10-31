@@ -9,8 +9,8 @@ import android.content.Intent
  * es avisar a la clase [Repository] de que actualice la BBDD según sea necesario.
  */
 class InstallEventBroadcastReceiver : BroadcastReceiver() {
-    override fun onReceive(context: Context?, p1: Intent?) {
-        val repository = Repository.newInstance(context!!.applicationContext)
-        repository!!.updateAppList()
+    override fun onReceive(context: Context?, intent: Intent?) {
+        val repository = Repository.getInstance(context!!.applicationContext)
+        repository!!.updateAppList(intent)
     }
 }

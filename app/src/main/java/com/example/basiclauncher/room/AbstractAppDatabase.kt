@@ -64,7 +64,7 @@ abstract class AbstractAppDatabase : RoomDatabase() {
         @Insert(onConflict = OnConflictStrategy.REPLACE)
         fun insertApp(obj: AppIcon)
 
-        @Query("select * from apps")
+        @Query("select * from apps order by appName collate nocase asc")
         fun getAppList(): LiveData<Array<AppIcon>>
 
         @Query("select * from apps where id=:id")

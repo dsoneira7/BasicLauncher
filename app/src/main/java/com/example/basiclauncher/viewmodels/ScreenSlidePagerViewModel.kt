@@ -13,21 +13,19 @@ import com.example.basiclauncher.classes.CustomLinearLayoutState
  */
 class ScreenSlidePagerViewModel(val app: Application, val page: Int) : AndroidViewModel(app) {
     //Contiene la lista de estados de la página correspondiente según la pagina
-    var stateList: LiveData<Array<CustomLinearLayoutState>>
-    private var repository = Repository.newInstance(app.applicationContext)
+    private var repository = Repository.getInstance(app.applicationContext)
     //Contiene la lista de apps instaladas. Cada estado tiene una referencia a una app de esta lista
     var appList = repository!!.getAppList()
-
-
-    init {
-        stateList = repository!!.getStateListByPage(page)
-    }
-
+    var stateList: LiveData<Array<CustomLinearLayoutState>>  = repository!!.getStateListByPage(page)
+    var numberOfPages : LiveData<Int> = repository!!.nPagesLiveData
     /**
      * Actualiza el estado de una celda en la BBDD
      */
     fun stateOccupied(packageName: String, page: Int, position: Int) {
         repository!!.stateOccupied(packageName, page, position)
+        if(page+1 > numberOfPages.value!!){
+            updateNumberOfPages(page+1)
+        }
     }
 
     /**
@@ -37,4 +35,7 @@ class ScreenSlidePagerViewModel(val app: Application, val page: Int) : AndroidVi
         repository!!.deleteItem(page, position)
     }
 
+    fun updateNumberOfPages(nPages: Int){
+        repository!!.updateNumberOfPages(nPages)
+    }
 }

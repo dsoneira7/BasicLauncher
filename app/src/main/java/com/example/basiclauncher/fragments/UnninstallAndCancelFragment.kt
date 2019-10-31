@@ -13,8 +13,8 @@ import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
-import com.example.basiclauncher.ON_ANULATE
-import com.example.basiclauncher.ON_UNNINSTALL
+import com.example.basiclauncher.activities.ON_ANULATE
+import com.example.basiclauncher.activities.ON_UNNINSTALL
 import com.example.basiclauncher.R
 import com.example.basiclauncher.Repository
 import kotlinx.android.synthetic.main.fragment_unninstall_and_cancel.*
@@ -91,12 +91,12 @@ class UnninstallAndCancelFragment : Fragment(), View.OnDragListener {
                 Thread {
                     //Adicionalmente, si es necesario actualizar numero de paginas, iconos, etc,
                     //se realiza en este momento a traves de la clase Repository
-                    Repository.newInstance(context!!.applicationContext)!!.updateIfNecessary()
+                    Repository.getInstance(context!!.applicationContext)!!.updateIfNecessary()
                 }.start()
                 if (view == container_invalidate) {
                         listener!!.onUnninstallAndCancelFragmentInteraction(ON_ANULATE, "")
                     } else {
-                        listener!!.onUnninstallAndCancelFragmentInteraction(ON_UNNINSTALL, (event.clipData.getItemAt(0).text as String).substringBefore(";"))
+                        listener!!.onUnninstallAndCancelFragmentInteraction(ON_UNNINSTALL, (event.clipData.getItemAt(0).text as String))
                     }
 
             }
@@ -107,7 +107,7 @@ class UnninstallAndCancelFragment : Fragment(), View.OnDragListener {
                 if (view!!.id == R.id.container_invalidate && !event.result) {
                     Toast.makeText(context, "Has soltado el icono en una zona no habilitada.", Toast.LENGTH_LONG).show()
                     Thread {
-                        Repository.newInstance(context!!.applicationContext)!!.revertLastDrag()
+                        Repository.getInstance(context!!.applicationContext)!!.revertLastDrag()
                     }.start()
                     listener!!.onUnninstallAndCancelFragmentInteraction(ON_ANULATE, "")
                 }

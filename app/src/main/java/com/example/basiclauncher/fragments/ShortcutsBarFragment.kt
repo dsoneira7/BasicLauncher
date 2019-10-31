@@ -3,21 +3,21 @@ package com.example.basiclauncher.fragments
 import android.content.Context
 import android.os.Bundle
 import android.util.Log
+import android.util.SparseArray
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
-import android.widget.FrameLayout
-import android.widget.LinearLayout
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProviders
-import com.example.basiclauncher.CustomLinearLayout
-import com.example.basiclauncher.OPEN_APP_DRAWER
+import com.example.basiclauncher.classes.CustomLinearLayout
+import com.example.basiclauncher.activities.OPEN_APP_DRAWER
 import com.example.basiclauncher.R
+import com.example.basiclauncher.classes.AppIcon
 import com.example.basiclauncher.classes.CustomLinearLayoutState
 import com.example.basiclauncher.viewmodels.ScreenSlidePagerViewModel
-import com.example.basiclauncher.viewmodels.ScreenSlidePagerViewModelFactory
+import com.example.basiclauncher.viewmodels.factories.ScreenSlidePagerViewModelFactory
 import kotlinx.android.synthetic.main.fragment_shortcuts_bar.*
 
 
@@ -27,7 +27,7 @@ import kotlinx.android.synthetic.main.fragment_shortcuts_bar.*
  * [ScreenSlidePagerFragment]. Adicionalmente esta barra tiene la función de lanzar el app drawer,
  * si se arrastra desde ella hacia arriba.
  * Se debe utilizar el método factoría [newInstance] para crear una instancia. La actividad conte-
- * nedora debe implementar [OnFragmentInteractionListener] para la comunicación.
+ * nedora debe implementar [OnShortcutsBarFragmentInteractionListener] para la comunicación.
  */
 
 //La barra de accesos directos se trata como si fuera una página en la posición -1.
@@ -50,55 +50,66 @@ class ShortcutsBarFragment : Fragment() {
         //El ViewModel que utiliza es un ScreenSlidePagerViewModel
         viewModel = ViewModelProviders.of(this, ScreenSlidePagerViewModelFactory(activity!!.application, SHORTCUTS_BAR_PAGE)).get(ScreenSlidePagerViewModel::class.java)
         view.setOnTouchListener { _, motionEvent -> dragDrawer(motionEvent) }
-        viewModel.stateList.observe(this, observer)
 
-        //El funcionamiento es totalmente análogo al de ScreenSlidePagerFragment. Solo que en vez
-        //de tratar con un número de iconos dinámico trata siempre con 4 que están siempre visibles.
-        for (i in 0 until 4) {
-            val frameLayout = when (i) {
-                0 -> view.findViewById<FrameLayout>(R.id.container_shortcut_1)
-                1 -> view.findViewById(R.id.container_shortcut_2)
-                2 -> view.findViewById(R.id.container_shortcut_3)
-                else -> view.findViewById(R.id.container_shortcut_4)
-            }
-            val linearLayout = CustomLinearLayout(context, SHORTCUTS_BAR_PAGE, i, true)
-            linearLayout.id = (i + 1)
-            if (viewModel.stateList.value != null) {
-                for (j in viewModel.stateList.value!!) {
-                    if (j.position == i && viewModel.appList.value!!.get(j.appId) != null) {
-                        linearLayout.setApp(viewModel.appList.value!!.get(j.appId))
-                        linearLayout.clearText()
-                        break
-                    }
-                }
-            }
-            linearLayout.layoutParams = FrameLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.MATCH_PARENT
-            )
-            linearLayout.attachListeners({ p1, p2, p3 -> onIconAttached(p1, p2, p3) },
-                    { listener!!.onShortcutsBarFragmentInteraction(it) })
-
-            frameLayout.addView(linearLayout)
-        }
         return view
     }
 
-    private val observer = Observer<Array<CustomLinearLayoutState>> {
+    override fun onStart() {
+        viewModel.stateList.observe(this, stateListObserver)
+        viewModel.appList.observe(this, appListObserver)
+        //El funcionamiento es totalmente análogo al de ScreenSlidePagerFragment. Solo que en vez
+        //de tratar con un número de iconos dinámico trata siempre con 4 que están siempre visibles.
+        for (i in 0 until 4) {
+            val linearLayout = when (i) {
+                0 -> view!!.findViewById<CustomLinearLayout>(R.id.container_shortcut_1)
+                1 -> view!!.findViewById(R.id.container_shortcut_2)
+                2 -> view!!.findViewById(R.id.container_shortcut_3)
+                else -> view!!.findViewById(R.id.container_shortcut_4)
+            }
+            linearLayout.setBasicParams(-1, i, true)
+            linearLayout.attachListeners({ p1, p2, p3 -> onIconAttached(p1, p2, p3) },
+                    { listener!!.onShortcutsBarFragmentInteraction(it) })
+        }
+        super.onStart()
+    }
+
+    private val stateListObserver = Observer<Array<CustomLinearLayoutState>> {
+        if(viewModel.appList.value!=null){
+            updateUI(it, viewModel.appList.value!!)
+        }
+    }
+
+    private val appListObserver = Observer<SparseArray<AppIcon>>{
+        if(viewModel.stateList.value != null) {
+            updateUI(viewModel.stateList.value!!, it)
+        }
+    }
+
+    private fun updateUI(it: Array<CustomLinearLayoutState>, appList: SparseArray<AppIcon>){
         var contador = 0
-        for (i in 0..4) {
+        Log.d("debug","Observadoun cvambio en la shortcuts bar")
+        for (i in 0..3) {
+            val id = when(i){
+                0-> R.id.container_shortcut_1
+                1-> R.id.container_shortcut_2
+                2-> R.id.container_shortcut_3
+                else-> R.id.container_shortcut_4
+            }
             if (contador < it.size && i == it[contador].position) {
 
-                val cell = view!!.findViewById<CustomLinearLayout>((it[contador].position + 1))
+                val cell = view!!.findViewById<CustomLinearLayout>(id)
                 if (cell == null) {
                     Log.d("ERROR", "Cell not found")
-                } else if ((cell.isEmpty() || cell.getAppId() != it[contador].appId) && viewModel.appList.value!!.get(it[contador].appId) != null) {
-                    cell.setApp(viewModel.appList.value!!.get(it[contador].appId))
+                } else if ((cell.isEmpty() || cell.getAppId() != it[contador].appId) && appList.get(it[contador].appId) != null) {
+                    cell.setApp(appList.get(it[contador].appId))
                     cell.clearText()
+                }
+                else{
+                    Log.d("debugg", "problemm: "+ appList.get(it[contador].appId))
                 }
                 contador++
             } else {
-                val cell = view!!.findViewById<CustomLinearLayout>(i + 1)
+                val cell = view!!.findViewById<CustomLinearLayout>(id)
                 if (cell != null && !cell.isEmpty()) {
                     cell.clear()
                 } else {

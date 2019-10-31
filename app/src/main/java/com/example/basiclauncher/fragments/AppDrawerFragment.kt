@@ -2,6 +2,7 @@ package com.example.basiclauncher.fragments
 
 import android.content.Context
 import android.os.Bundle
+import android.util.SparseArray
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -41,13 +42,9 @@ class AppDrawerFragment : Fragment() {
         viewModel = ViewModelProviders.of(this.activity!!).get(AppDrawerViewModel::class.java)
         gridview.setBackgroundColor(ContextCompat.getColor(context!!, R.color.whiteLowAlpha)) //Leve color blanco sombreado de fondo
 
-        if (viewModel.orderedAppArrayLiveData.value != null) { //Si el viewmodel ya contiene los datos, creamos el adaptador y se lo pasamos al gridView
-            gridview.adapter = AppDrawerAdapter(context!!, viewModel.orderedAppArrayLiveData.value!!) { onHoldAppIcon() }
-        }
-
         //Observamos el listado de aplicaciones del sistema. Si hay algún cambio (instalación o desinstalación) pasamos el adaptador nuevo.
-        viewModel.orderedAppArrayLiveData.observe(this, Observer<ArrayList<AppIcon>> {
-            gridview.adapter = AppDrawerAdapter(context!!, viewModel.orderedAppArrayLiveData.value!!) { onHoldAppIcon() }
+        viewModel.appLiveData.observe(this, Observer<Array<AppIcon>> {
+            gridview.adapter = AppDrawerAdapter(context!!, viewModel.appLiveData.value!!) { onHoldAppIcon() }
         })
     }
 

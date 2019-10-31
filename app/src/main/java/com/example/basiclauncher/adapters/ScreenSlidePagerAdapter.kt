@@ -31,11 +31,7 @@ class ScreenSlidePagerAdapter constructor(
      * o no.
      */
     override fun getItem(position: Int): Fragment {
-        val fragment = ScreenSlidePagerFragment.newInstance()
-        val bundle = Bundle()
-        bundle.putInt("position", position)
-        bundle.putInt("isSmallFragment", isSmallFragment)
-        fragment.arguments = bundle
+        val fragment = ScreenSlidePagerFragment.newInstance(position, isSmallFragment)
         return fragment
     }
 

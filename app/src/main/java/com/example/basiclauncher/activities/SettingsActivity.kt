@@ -1,7 +1,10 @@
-package com.example.basiclauncher
+package com.example.basiclauncher.activities
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
+import com.example.basiclauncher.R
+import com.example.basiclauncher.Repository
 import com.example.basiclauncher.fragments.SettingsActivityFragment
 
 const val SETTINGS_ACTIVITY_FRAGMENT_TAG = "SettingsActivityFragment"
@@ -29,7 +32,9 @@ class SettingsActivity : AppCompatActivity() {
      * para que se lleven a cabo las operaciones necesarias según los cambios que se hayan hecho
      */
     override fun onBackPressed() {
-        setResult(RESULT_OK)
+        val result = Intent()
+        intent.putExtra(resources.getString(R.string.icon_size), Repository.getInstance(applicationContext)!!.getIconsPerRow())
+        setResult(RESULT_OK, result)
         finish()
     }
 }

@@ -2,6 +2,7 @@ package com.example.basiclauncher.viewmodels
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
+import com.example.basiclauncher.Repository
 
 /**
  * Subclase de [AndroidViewModel] que se corresponde con todos lso [MainFragment] que se creen.
@@ -21,4 +22,9 @@ class MainFragmentViewModel(val app: Application) : AndroidViewModel(app) {
     var iconHeight = 0
     var smallIconHeight = 0
     var smallerIconHeight = 0
+
+    private val repository: Repository = Repository.getInstance(app.applicationContext)!!
+
+    val nPages = repository.nPagesLiveData
+
 }

@@ -20,12 +20,10 @@ class SettingsActivityFragment : PreferenceFragmentCompat() {
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
         setPreferencesFromResource(R.xml.preference, rootKey)
         val seekBar = findPreference<SeekBarPreference>(resources.getString(R.string.icon_size))
-        //A la SeekBar se le pone de valor máximo 3. Así va de 0 a 3. Si le sumamos 3 al valor que dea ya tendremos
-        //nuestra SeekBar de 3 a 6
-        seekBar!!.summary = (seekBar.value + 3).toString() + " iconos por fila"
+        seekBar!!.summary = (seekBar.value).toString() + " iconos por fila"
         seekBar.updatesContinuously = true
         seekBar.setOnPreferenceChangeListener { preference, entry ->
-            preference.summary = ((entry as Int) + 3).toString() + " iconos por fila"
+            preference.summary = (entry as Int).toString() + " iconos por fila"
             true
         }
     }
